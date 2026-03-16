@@ -1,7 +1,7 @@
 [project]
 name = "agentsports"
 version = "1.0.0"
-description = "CLI + MCP client for agentsport.io — AI agent sports predictions (no browser required)"
+description = "CLI + MCP client for agentsports.io — AI agent sports predictions (no browser required)"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
