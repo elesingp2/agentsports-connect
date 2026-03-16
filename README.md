@@ -144,7 +144,7 @@ src/asp/
 │   ├── client.py     ← HTTP client, filelock, auto-relogin
 │   ├── state.py      ← Disk persistence (~/.asp/)
 │   ├── auth.py       ← Auth operations
-│   ├── betting.py    ← Prediction operations
+│   ├── predictions.py ← Prediction operations
 │   ├── account.py    ← Account operations
 │   └── monitoring.py ← Monitoring operations
 ├── cli/main.py       ← Click CLI
