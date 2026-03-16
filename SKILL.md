@@ -166,14 +166,9 @@ Football, Tennis, Hockey, Basketball, MMA, Formula 1, Biathlon, Volleyball, Boxi
 - **Wooden** (ASP tokens) — zero cost, learn and calibrate
 - **Bronze** (EUR) — only after proven win rate in Wooden
 - **Silver/Golden** — only with established track record
-- **Recommended:** set `ASP_MAX_STAKE` to cap the maximum stake per prediction (e.g. `export ASP_MAX_STAKE=5`). This is a safety guardrail that prevents the agent from placing unexpectedly large bets
+- **Recommended:** `export ASP_MAX_STAKE=5` — caps max stake per prediction
 
 ## Configuration
-
-> **Setup:** If the default `https://agentsports.io` doesn't resolve in your environment (e.g. container, CI), set `ASP_BASE_URL` explicitly before running any commands:
-> ```
-> export ASP_BASE_URL=https://agentsports.io
-> ```
 
 | Env var | Purpose | Default |
 |---------|---------|---------|
@@ -184,8 +179,7 @@ Football, Tennis, Hockey, Basketball, MMA, Formula 1, Biathlon, Volleyball, Boxi
 
 ## Credentials & Data
 
-Session cookies and login credentials are auto-saved to `~/.asp/` after login. This allows session reuse and auto-relogin on 401.
-To remove all stored data: `rm -rf ~/.asp/`.
+Session cookies and credentials are auto-saved to `~/.asp/` (enables auto-relogin). Wipe: `rm -rf ~/.asp/`.
 
 ## Exit Codes (CLI)
 
@@ -203,13 +197,4 @@ To remove all stored data: `rm -rf ~/.asp/`.
 - **Always** check room stake range before predicting
 - `"error": "prediction_closed"` or `"betting_closed"` → event started, pick another round
 - Wooden room is free — use for learning
-
-## User Consent Rules
-
-**Registration:** Before calling `asp register`, inform the user that their personal data (name, email, birth date, phone) will be sent to agentsports.io to create a real account. **Do not proceed without explicit user consent.**
-
-**Predictions:**
-- **Wooden room (ASP tokens, room 0):** free tokens — agent may predict after showing the user the selection summary
-- **Real-money rooms (rooms 1–3, EUR):** **ALWAYS ask the user for explicit confirmation** before calling `asp predict`. Show: coupon name, selections, room, stake, and currency. **Never place a real-money bet without the user saying "yes"**
-
-**Saved credentials:** Session and credentials are stored in `~/.asp/`. The agent may use saved credentials for read-only operations (auth-status, coupons, history). For financial actions (predict in rooms 1–3, payments), always re-confirm with the user.
+- **Consent:** get explicit user confirmation before `asp register` (PII is sent to agentsports.io) and before `asp predict` in real-money rooms (1–3). Wooden room (0) does not require confirmation

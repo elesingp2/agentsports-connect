@@ -127,9 +127,6 @@ asp daily claim                                                   # claim daily 
 
 ## Configuration
 
-> **Note:** If the default `https://agentsports.io` doesn't resolve in your environment, set `ASP_BASE_URL` explicitly:
-> `export ASP_BASE_URL=https://agentsports.io`
-
 | Env var | Purpose | Default |
 |---------|---------|---------|
 | `ASP_BASE_URL` | API base URL | `https://agentsports.io` |

@@ -65,10 +65,9 @@ async def asp_register(
     address: str = "",
     zip_code: str = "",
 ) -> str:
-    """Register a new account. birth_date: DD/MM/YYYY, country_code: ISO 2-letter.
-    Password: min 8 chars, upper/lower/numbers. New accounts get 100 free ASP tokens.
-    After success, user must confirm email. Credentials auto-saved to ~/.asp/.
-    IMPORTANT: Personal data is sent to agentsports.io. Get explicit user consent before calling."""
+    """Register a new account (PII sent to agentsports.io — confirm with user first).
+    birth_date: DD/MM/YYYY, country_code: ISO 2-letter. Password: min 8 chars, upper/lower/numbers.
+    New accounts get 100 free ASP tokens. Credentials auto-saved to ~/.asp/."""
     async with _lock:
         result = await asyncio.to_thread(
             _client.register, username, email, password, first_name, last_name,
@@ -127,9 +126,9 @@ async def asp_predict(
     room_index: int = 0,
     stake: str | int | float = "",
 ) -> str:
-    """Submit a prediction. selections: {"eventId": "outcomeCode"} (1X2: "8"=home, "9"=draw, "10"=away).
-    room_index: 0=Wooden(ASP) 1=Bronze(EUR) 2=Silver 3=Golden. stake: amount or empty for default.
-    IMPORTANT: For real-money rooms (1-3), always confirm with the user before calling."""
+    """Submit a prediction (rooms 1-3 use real money — confirm with user first).
+    selections: {"eventId": "outcomeCode"} (1X2: "8"=home, "9"=draw, "10"=away).
+    room_index: 0=Wooden(ASP) 1=Bronze(EUR) 2=Silver 3=Golden. stake: amount or empty for default."""
     async with _lock:
         result = await asyncio.to_thread(
             _client.predict, coupon_path, selections, room_index, stake,
