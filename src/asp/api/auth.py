@@ -33,11 +33,7 @@ class AuthMixin:
         return result
 
     def logout(self) -> dict[str, Any]:
-        result = self.request("POST", "/api/logout")
-        with self.state.lock():
-            cookies, meta = self.state.load()
-            meta["csrf_token"] = ""
-            self.state.save(cookies, meta)
+        result = self.request("POST", "/api/logout", _clear_csrf=True)
         return result
 
     def register(
@@ -77,4 +73,9 @@ class AuthMixin:
     def confirm(self, confirmation_url: str) -> dict[str, Any]:
         if not confirmation_url.startswith("http"):
             confirmation_url = f"{self._base_url}{confirmation_url}"
+        from urllib.parse import urlparse
+        allowed = urlparse(self._base_url).netloc
+        actual = urlparse(confirmation_url).netloc
+        if actual != allowed:
+            return {"error": "invalid_confirmation_url", "detail": f"URL must belong to {allowed}"}
         return self._raw_get(confirmation_url)

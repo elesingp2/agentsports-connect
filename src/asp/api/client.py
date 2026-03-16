@@ -50,7 +50,8 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
         Keyword _allow_relogin (bool, default True): set False for login itself.
         """
         allow_relogin = kwargs.pop("_allow_relogin", True)
-        resp = self._do_request(method, path, allow_relogin=allow_relogin, **kwargs)
+        clear_csrf = kwargs.pop("_clear_csrf", False)
+        resp = self._do_request(method, path, allow_relogin=allow_relogin, clear_csrf=clear_csrf, **kwargs)
         return self._parse_response(resp)
 
     def _do_request(
@@ -59,6 +60,7 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
         path: str,
         *,
         allow_relogin: bool = True,
+        clear_csrf: bool = False,
         **kwargs: Any,
     ) -> httpx.Response:
         with self.state.lock():
@@ -80,8 +82,10 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
                 self._extract_csrf(resp, meta)
 
                 if resp.status_code == 401 and allow_relogin:
-                    resp = self._try_relogin(http, method, path, headers, meta, kwargs)
+                    resp = self._try_relogin(http, method, path, headers, meta, resp, kwargs)
 
+                if clear_csrf:
+                    meta["csrf_token"] = ""
                 self.state.save(http.cookies, meta)
 
         return resp
@@ -93,12 +97,13 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
         path: str,
         headers: dict[str, str],
         meta: dict[str, Any],
+        orig_resp: httpx.Response,
         kwargs: dict[str, Any],
     ) -> httpx.Response:
         """Attempt auto-relogin with saved credentials, then retry the original request."""
         creds = self.state.load_credentials()
         if not creds:
-            return http.request(method, path, headers=headers, **kwargs)
+            return orig_resp
 
         login_resp = http.post(
             "/api/login",
@@ -106,11 +111,11 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
             headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
         if login_resp.status_code != 200:
-            return http.request(method, path, headers=headers, **kwargs)
+            return orig_resp
 
         login_data = self._parse_response(login_resp)
         if not login_data.get("authenticated"):
-            return http.request(method, path, headers=headers, **kwargs)
+            return orig_resp
 
         self._extract_csrf(login_resp, meta)
         csrf = meta.get("csrf_token", "")

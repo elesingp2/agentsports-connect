@@ -34,8 +34,15 @@ def _load_instructions() -> str:
 
 mcp = FastMCP("agentsports", instructions=_load_instructions())
 
-_client = AspClient()
+_client: AspClient | None = None
 _lock = asyncio.Lock()
+
+
+def _get_client() -> AspClient:
+    global _client
+    if _client is None:
+        _client = AspClient(data_dir=os.environ.get("ASP_DATA_DIR", "~/.asp/"))
+    return _client
 
 
 def _j(value: Any) -> str:
@@ -64,14 +71,15 @@ async def asp_register(
     city: str = "",
     address: str = "",
     zip_code: str = "",
+    sex: str = "male",
 ) -> str:
     """Register a new account (PII sent to agentsports.io — confirm with user first).
     birth_date: DD/MM/YYYY, country_code: ISO 2-letter. Password: min 8 chars, upper/lower/numbers.
     New accounts get 100 free ASP tokens. Credentials auto-saved to ~/.asp/."""
     async with _lock:
         result = await asyncio.to_thread(
-            _client.register, username, email, password, first_name, last_name,
-            birth_date, phone, country_code, city, address, zip_code,
+            _get_client().register, username, email, password, first_name, last_name,
+            birth_date, phone, country_code, city, address, zip_code, sex,
         )
     return _j(result)
 
@@ -79,7 +87,7 @@ async def asp_register(
 @mcp.tool()
 async def asp_confirm(confirmation_url: str) -> str:
     """Activate account using the email confirmation link."""
-    return await _call(_client.confirm, confirmation_url)
+    return await _call(_get_client().confirm, confirmation_url)
 
 
 @mcp.tool()
@@ -87,20 +95,20 @@ async def asp_login(email: str = "", password: str = "") -> str:
     """Log in. ALWAYS pass email+password when user provides them.
     Omit both to reuse saved credentials. If 'player_already_logged_in' → asp_logout() first."""
     async with _lock:
-        result = await asyncio.to_thread(_client.login, email or None, password or None)
+        result = await asyncio.to_thread(_get_client().login, email or None, password or None)
     return _j(result)
 
 
 @mcp.tool()
 async def asp_logout() -> str:
     """End session."""
-    return await _call(_client.logout)
+    return await _call(_get_client().logout)
 
 
 @mcp.tool()
 async def asp_auth_status() -> str:
     """Check session + balances. Call first — if authenticated, no login needed."""
-    return await _call(_client.auth_status)
+    return await _call(_get_client().auth_status)
 
 
 # ── Predictions ───────────────────────────────────────────────────────────
@@ -109,14 +117,14 @@ async def asp_auth_status() -> str:
 async def asp_coupons() -> str:
     """List available prediction rounds: {coupons: [{id, path, sport, league, status, eventsCount, startTime}]}.
     Use id or path in asp_coupon."""
-    return await _call(_client.coupons)
+    return await _call(_get_client().coupons)
 
 
 @mcp.tool()
 async def asp_coupon(path: str) -> str:
     """Get round events, outcomes, rooms and stakes. ALWAYS call before submitting a prediction.
     Accepts path ('/FOOTBALL/laLiga/18638') or numeric ID ('18638')."""
-    return await _call(_client.coupon_details, path)
+    return await _call(_get_client().coupon_details, path)
 
 
 @mcp.tool()
@@ -131,7 +139,7 @@ async def asp_predict(
     room_index: 0=Wooden(ASP) 1=Bronze(EUR) 2=Silver 3=Golden. stake: amount or empty for default."""
     async with _lock:
         result = await asyncio.to_thread(
-            _client.predict, coupon_path, selections, room_index, stake,
+            _get_client().predict, coupon_path, selections, room_index, stake,
         )
     return _j(result)
 
@@ -142,19 +150,19 @@ async def asp_predict(
 async def asp_predictions(active_only: bool = False) -> str:
     """Get prediction history. active_only=true for pending predictions only.
     Each entry has: id, sport, room, stake, points (accuracy 0-100), winning, status, selections."""
-    return await _call(_client.predictions, active_only=active_only)
+    return await _call(_get_client().predictions, active_only=active_only)
 
 
 @mcp.tool()
 async def asp_account() -> str:
     """Account details: name, email, balances, registration date."""
-    return await _call(_client.account)
+    return await _call(_get_client().account)
 
 
 @mcp.tool()
 async def asp_payments() -> str:
     """Deposit and withdrawal methods with fees and limits."""
-    return await _call(_client.payment_methods)
+    return await _call(_get_client().payment_methods)
 
 
 # ── Daily & Social ────────────────────────────────────────────────────────
@@ -164,14 +172,14 @@ async def asp_daily(claim: bool = False) -> str:
     """Daily bonus. claim=false → check status (available, amount, countdown).
     claim=true → claim bonus. Check status first to see if available."""
     if claim:
-        return await _call(_client.daily_claim)
-    return await _call(_client.daily_status)
+        return await _call(_get_client().daily_claim)
+    return await _call(_get_client().daily_status)
 
 
 @mcp.tool()
 async def asp_social() -> str:
     """Friends list, invite link for referral bonuses."""
-    return await _call(_client.social)
+    return await _call(_get_client().social)
 
 
 def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:

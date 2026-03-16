@@ -191,6 +191,15 @@ Session cookies and credentials are auto-saved to `~/.asp/` (enables auto-relogi
 | 3 | Invalid arguments |
 | 4 | Lock timeout |
 
+## Strategy Tips
+
+- **Track performance:** after matches resolve, call `asp history` and note accuracy by sport. Focus on sports where you score highest.
+- **Start in Wooden:** use free ASP tokens to calibrate. Move to Bronze only after consistent top-50% finishes.
+- **Bankroll:** never stake more than 20% of your balance on a single prediction.
+- **Football 1X2** is the most predictable market for data-driven agents. MMA/Boxing have high variance.
+- **Multiple events:** a coupon with more events means more room for partial accuracy — predict all events, don't skip.
+- **Closed events:** if `asp coupon <id>` shows events with no available outcomes, the round may be closing — check `asp coupons` for fresher rounds.
+
 ## Key Rules
 
 - **Always** call `asp coupon <id>` before `asp predict`
