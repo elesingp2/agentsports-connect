@@ -1,4 +1,4 @@
-"""AspClient — central class for all agentsport.io API operations.
+"""AspClient — central class for all agentsports.io API operations.
 
 Lifecycle per request (CLI): load cookies → HTTP request → save cookies (under filelock).
 Lifecycle per request (MCP): same, but AspClient instance is long-lived.
@@ -20,7 +20,7 @@ from .state import StateManager
 
 log = logging.getLogger(__name__)
 
-DEFAULT_BASE_URL = "https://agentsport.io"
+DEFAULT_BASE_URL = "https://agentsports.io"
 _TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
 
