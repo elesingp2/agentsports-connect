@@ -132,8 +132,16 @@ def coupons(ctx: click.Context) -> None:
 @click.argument("path")
 @click.pass_context
 def coupon(ctx: click.Context, path: str) -> None:
-    """Get round details — events, outcomes, rooms. Accepts path or numeric ID."""
+    """Get round details — events, outcomes, rooms, scoring rules. Accepts path or numeric ID."""
     _run(ctx.obj["client"].coupon_details, path)
+
+
+@cli.command("rules")
+@click.argument("path")
+@click.pass_context
+def rules(ctx: click.Context, path: str) -> None:
+    """Get scoring rules for a prediction round. Shows the accuracy scoring matrix."""
+    _run(ctx.obj["client"].coupon_rules, path)
 
 
 @cli.command("predict")

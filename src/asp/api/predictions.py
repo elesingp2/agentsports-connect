@@ -17,6 +17,10 @@ class PredictionMixin:
         cid = _coupon_id(path_or_id)
         return self.request("GET", f"/api/coupons/{cid}")
 
+    def coupon_rules(self, path_or_id: str) -> dict[str, Any]:
+        cid = _coupon_id(path_or_id)
+        return self.request("GET", f"/api/coupons/{cid}/rules")
+
     def predict(
         self,
         coupon_path: str,

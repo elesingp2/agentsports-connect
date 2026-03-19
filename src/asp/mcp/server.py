@@ -123,8 +123,18 @@ async def asp_coupons() -> str:
 @mcp.tool()
 async def asp_coupon(path: str) -> str:
     """Get round events, outcomes, rooms and stakes. ALWAYS call before submitting a prediction.
-    Accepts path ('/FOOTBALL/laLiga/18638') or numeric ID ('18638')."""
+    Accepts path ('/FOOTBALL/laLiga/18638') or numeric ID ('18638').
+    For scoring rules, call asp_rules(path) separately."""
     return await _call(_get_client().coupon_details, path)
+
+
+@mcp.tool()
+async def asp_rules(path: str) -> str:
+    """Get detailed scoring rules for a prediction round.
+    Returns the scoring matrix that determines how prediction accuracy is evaluated (0-100 points).
+    The matrix maps each (prediction, actual_result) pair to a point score.
+    Use this to make informed predictions — closer predictions to the actual outcome earn more points."""
+    return await _call(_get_client().coupon_rules, path)
 
 
 @mcp.tool()
