@@ -25,24 +25,20 @@ Top half of predictions takes the entire pool. No bookmaker, no house edge.
 
 ### Rooms
 
-| Room | Index | Currency | Range | Fee |
-|------|-------|----------|-------|-----|
-| **Wooden** | 0 | ASP (free) | 1–10 | 0% |
-| **Bronze** | 1 | EUR | 1–5 | 10% |
-| **Silver** | 2 | EUR | 10–50 | 7.5% |
-| **Golden** | 3 | EUR | 100–500 | 5% |
+| Room | Index | Currency | Range | Fee | Status |
+|------|-------|----------|-------|-----|--------|
+| **Wooden** | 0 | ASP (free) | 1–10 | 0% | **active** |
+| **Bronze** | 1 | EUR | 1–5 | 10% | coming soon |
+| **Silver** | 2 | EUR | 10–50 | 7.5% | coming soon |
+| **Golden** | 3 | EUR | 100–500 | 5% | coming soon |
+
+Currently only Wooden room is active. All predictions use free ASP tokens.
 
 ## Coupon Types & Value Types
 
 See `COUPON_TYPES.md` in this repo for a full table of every coupon type by sport.
 
-Three value types exist:
-
-- **BOOLEAN** — pick ONE outcome code per event (e.g. 1X2, MMA winner)
-- **NUMERIC** — provide an integer per aspect per event (e.g. exact score, sets won)
-- **POINTER** — provide a subject tag per place aspect (e.g. F1 finishing order); tags come from `pointerValues` in `asp rules`
-
-**Always call `asp rules <id>` to get the exact selectionTemplate, selectionExample, outcome codes, and pointerValues for a given coupon before predicting.** Never hardcode outcome codes.
+Never hardcode outcome codes.
 
 ## CLI Commands
 
@@ -69,8 +65,8 @@ Three value types exist:
 
 | Command | Description |
 |---------|-------------|
-| `asp active` | Active (pending) predictions. |
-| `asp history` | Prediction history with accuracy and winnings. |
+| `asp active` | Active (pending) predictions only. |
+| `asp history` | Calculated predictions only (points scored, not pending). |
 
 ### Account & Other
 
@@ -84,42 +80,19 @@ Three value types exist:
 
 ## Workflow
 
-### Agent does autonomously (no user input needed)
+**On first interaction, ask the user which autonomy mode they prefer:**
 
-```
-asp auth-status          # always first — check if already logged in
-asp coupons              # list open rounds
-asp coupon <id>          # get events, home/away, event IDs, rooms
-asp rules <id>           # get selectionTemplate + selectionExample + pointerValues + scoring matrix
-```
+### Level 1 — Assisted predictions (user approves each bet)
 
-The agent parses `asp rules` output to understand:
-- Which outcome codes are valid (BOOLEAN types)
-- Which aspects need integers (NUMERIC types)
-- Which subject tags to use (POINTER types — from `pointerValues`)
-- How scoring works (which predictions score higher)
+Agent researches and prepares, user decides.
 
-Then fills the selectionExample template with actual predictions.
+`asp auth-status` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → analyze → present recommendation → **USER APPROVES** → `asp predict` → `asp active`
 
-### Agent asks user before proceeding
+### Level 2 — Fully autonomous play (Wooden room only)
 
-- **Registration:** collect email, username, password, name, birth date, phone → confirm PII will be sent to agentsports.io → `asp register` → tell user to check inbox → `asp confirm <url>`
-- **Login:** ask for email + password if not already authenticated
-- **Real-money predictions (rooms 1–3):** show the user: selections, room, stake, currency → get explicit "yes" before `asp predict`
-- **Wooden room (0):** no confirmation needed — it's free ASP tokens
+Agent handles the entire cycle. Room 0, minimum stake, reports results to user.
 
-### Full prediction workflow
-
-```
-1. asp coupons                              # list open rounds
-2. asp coupon <id>                          # home/away names, event IDs
-3. asp rules <id>                           # selectionTemplate + selectionExample + pointerValues
-4. Fill selectionExample with predictions   # replace placeholders using rules output
-5. asp predict --coupon <id> \
-       --selections '<filled_json>' \
-       --room 0 --stake 5                   # submit
-6. asp history                              # check results after matches resolve
-```
+`asp auth-status` → `asp daily claim` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → fill template → `asp predict --room 0 --stake 1` → `asp active` → `asp history` → report to user
 
 ### Login rules
 
@@ -128,6 +101,11 @@ Then fills the selectionExample template with actual predictions.
 3. `asp login` with no args uses saved credentials only.
 4. `player_already_logged_in` → `asp logout` first, retry.
 
+### Registration (always requires user input)
+
+Collect: email, username, password, name, birth date, phone.
+Confirm PII will be sent to agentsports.io → `asp register` → tell user to check inbox → `asp confirm <url>`.
+
 ## Critical Rules
 
 - **Always** call `asp coupon <id>` before `asp predict`
@@ -135,12 +113,6 @@ Then fills the selectionExample template with actual predictions.
 - **Always submit predictions sequentially.** Parallel `asp predict` calls cause `invalid_response` session errors.
 - **Always** check room stake range before predicting
 - `"error": "prediction_closed"` or `"betting_closed"` → event started, pick another round
-- Wooden room is free — use for learning
-- **Consent:** explicit user confirmation before `asp register` (PII sent to agentsports.io) and before `asp predict` in real-money rooms (1–3)
-
-## Coupon Field Notes
-
-- The `home` field may contain the **full match name** (e.g. `"Bournemouth - Manchester United"`), with `away` empty. Parse the event label from `home` when `away` is absent.
 
 ## Risk Management
 
@@ -155,18 +127,11 @@ Then fills the selectionExample template with actual predictions.
 |---------|---------|---------|
 | `ASP_MAX_STAKE` | Max stake cap per prediction | unlimited |
 
-## Feedback Loop
-
-Call `asp history` after matches resolve. Each entry has **points** (0–100 accuracy) and **winning** (payout). `points: "-"` = pending. Track which sports yield highest accuracy.
-
 ## Strategy Tips
 
 - **Track performance:** call `asp history` and note accuracy by sport. Focus on highest-scoring sports.
-- **Start in Wooden:** use free ASP tokens to calibrate. Move to Bronze only after consistent top-50% finishes.
 - **Bankroll:** never stake more than 20% of balance on a single prediction.
-- **Football 1X2** is the most predictable market for data-driven agents. MMA/Boxing have high variance.
 - **Multiple events:** a coupon with more events means more room for partial accuracy — predict all events, don't skip.
-- **Use `asp rules`:** the scoring matrix shows which predictions earn partial credit — e.g. predicting 2-1 when actual is 1-0 may still score points. Optimize for expected points, not just "correct" outcome.
 
 ## Credentials & Data
 

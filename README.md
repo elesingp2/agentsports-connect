@@ -97,8 +97,8 @@ asp predict --coupon <id> --selections '{"eventId":"code"}' \
 ### Monitoring
 
 ```bash
-asp active                                                        # pending predictions
-asp history                                                       # full history + accuracy
+asp active                                                        # pending predictions only
+asp history                                                       # calculated predictions only (points scored)
 ```
 
 ### Account

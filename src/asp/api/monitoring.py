@@ -18,4 +18,8 @@ class MonitoringMixin:
         return self.predictions(active_only=True)
 
     def prediction_history(self) -> dict[str, Any]:
-        return self.predictions(active_only=False)
+        result = self.predictions(active_only=False)
+        if "bets" in result:
+            calculated = [b for b in result["bets"] if b.get("points") != "-"]
+            return {"bets": calculated, "count": len(calculated)}
+        return result

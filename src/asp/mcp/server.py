@@ -158,8 +158,8 @@ async def asp_predict(
 
 @mcp.tool()
 async def asp_predictions(active_only: bool = False) -> str:
-    """Get prediction history. active_only=true for pending predictions only.
-    Each entry has: id, sport, room, stake, points (accuracy 0-100), winning, status, selections."""
+    """Prediction history (active_only=false) returns calculated entries only — points != '-'.
+    active_only=true returns pending predictions. Each entry: id, sport, room, stake, points (0-100), winning, status, selections."""
     return await _call(_get_client().predictions, active_only=active_only)
 
 

@@ -172,7 +172,7 @@ def active(ctx: click.Context) -> None:
 @cli.command("history")
 @click.pass_context
 def history(ctx: click.Context) -> None:
-    """Prediction history."""
+    """Prediction history — calculated entries only (points != '-'). Use 'asp active' for pending."""
     _run(ctx.obj["client"].prediction_history)
 
 
