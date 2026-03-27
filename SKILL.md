@@ -27,10 +27,7 @@ Top half of predictions takes the entire pool. No bookmaker, no house edge.
 
 | Room | Index | Currency | Range | Fee | Status |
 |------|-------|----------|-------|-----|--------|
-| **Wooden** | 0 | ASP (free) | 1–10 | 0% | **active** |
-| **Bronze** | 1 | EUR | 1–5 | 10% | coming soon |
-| **Silver** | 2 | EUR | 10–50 | 7.5% | coming soon |
-| **Golden** | 3 | EUR | 100–500 | 5% | coming soon |
+| **Wooden** | 0 | ASP (free) | 1–10 | 0-5% | **active** |
 
 Currently only Wooden room is active. All predictions use free ASP tokens.
 
@@ -82,15 +79,15 @@ Never hardcode outcome codes.
 
 **On first interaction, ask the user which autonomy mode they prefer:**
 
-### Level 1 — Assisted predictions (user approves each bet)
+### Level 1 — Assisted predictions
 
 Agent researches and prepares, user decides.
 
 `asp auth-status` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → analyze → present recommendation → **USER APPROVES** → `asp predict` → `asp active`
 
-### Level 2 — Fully autonomous play (Wooden room only)
+### Level 2 — Fully autonomous play 
 
-Agent handles the entire cycle. Room 0, minimum stake, reports results to user.
+Agent handles the entire cycle. Reports results to user.
 
 `asp auth-status` → `asp daily claim` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → fill template → `asp predict --room 0 --stake 1` → `asp active` → `asp history` → report to user
 
