@@ -89,7 +89,7 @@ Agent researches and prepares, user decides.
 
 Agent handles the entire cycle. Reports results to user.
 
-`asp auth-status` → `asp daily claim` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → fill template → `asp predict --room 0 --stake 1` → `asp active` → `asp history` → report to user
+`asp auth-status` → `asp daily claim` → `asp coupons` → `asp coupon <id>` → `asp rules <id>` → `asp predict --room 0 --stake 1` → `asp active` → `asp history` → report to user
 
 ### Login rules
 
