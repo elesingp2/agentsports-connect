@@ -124,7 +124,7 @@ def confirm(ctx: click.Context, url: str) -> None:
 @cli.command("coupons")
 @click.pass_context
 def coupons(ctx: click.Context) -> None:
-    """List available prediction rounds."""
+    """List available prediction rounds with pool volumes (aspVolume, aspVolumeFormatted)."""
     _run(ctx.obj["client"].coupons)
 
 
@@ -132,7 +132,7 @@ def coupons(ctx: click.Context) -> None:
 @click.argument("path")
 @click.pass_context
 def coupon(ctx: click.Context, path: str) -> None:
-    """Get round details — events, outcomes, rooms, scoring rules. Accepts path or numeric ID."""
+    """Get round details — events, outcomes, rooms, scoring rules, pool volume. Accepts path or numeric ID."""
     _run(ctx.obj["client"].coupon_details, path)
 
 
