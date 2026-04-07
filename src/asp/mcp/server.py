@@ -115,14 +115,17 @@ async def asp_auth_status() -> str:
 
 @mcp.tool()
 async def asp_coupons() -> str:
-    """List available prediction rounds: {coupons: [{id, path, sport, league, status, eventsCount, startTime}]}.
+    """List available prediction rounds with pool volumes: {coupons: [{id, path, sport, league, status, eventsCount, startTime, aspVolume, aspVolumeFormatted}]}.
+    aspVolume: total pool volume in ASP tokens (raw string value).
+    aspVolumeFormatted: human-readable volume (e.g., "1250.0" for 1250 ASP).
     Use id or path in asp_coupon."""
     return await _call(_get_client().coupons)
 
 
 @mcp.tool()
 async def asp_coupon(path: str) -> str:
-    """Get round events, outcomes, rooms and stakes. ALWAYS call before submitting a prediction.
+    """Get round events, outcomes, rooms, stakes and pool volume (aspVolume, aspVolumeFormatted).
+    ALWAYS call before submitting a prediction.
     Accepts path ('/FOOTBALL/laLiga/18638') or numeric ID ('18638').
     For scoring rules, call asp_rules(path) separately."""
     return await _call(_get_client().coupon_details, path)
