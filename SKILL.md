@@ -53,8 +53,8 @@ Never hardcode outcome codes.
 
 | Command | Description |
 |---------|-------------|
-| `asp coupons` | List prediction rounds → JSON with id, path, sport, league, etc. |
-| `asp coupon <id>` | Events + home/away names + event IDs + rooms. **Always call before predicting.** |
+| `asp coupons` | List prediction rounds → JSON with id, path, sport, league, etc. + `poolVolumeAsc` (total ASP tokens in pool) + `poolVolumeEur` (total EUR in pool). |
+| `asp coupon <id>` | Events + home/away names + event IDs + rooms (incl. `poolVolume` per room). **Always call before predicting.** |
 | `asp rules <id>` | **Scoring rules:** selectionTemplate, selectionExample, outcome codes, pointerValues, scoring matrix. **Required before first prediction of any coupon type.** |
 | `asp predict --coupon <id> --selections '<json>' --room <idx> --stake <amt>` | Submit prediction. |
 
