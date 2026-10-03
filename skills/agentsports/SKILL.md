@@ -79,10 +79,13 @@ accepts the site terms as part of registration, and saves credentials privately.
 It returns the nickname without printing the password. If the user voluntarily
 provides a nickname or password, the corresponding optional flags are supported.
 After a successful registration, tell the user their nickname, that the site terms
-were accepted, and that they need to confirm their email. Ask them to open the
-confirmation email or supply its activation link; use `confirm URL` only for an
-`/emailVerify/` link from the configured site. Do not infer successful activation
-from HTTP 200 alone. Do not invent an email, personal details or consent for an
+were accepted, and that they need to confirm their email. If you have authorized
+access to the user's mailbox, find the recent AgentSports registration email for
+the registered address and confirm it using the activation link from that email.
+If mailbox access is unavailable, ask the user to open the email or supply its
+activation link. Use `confirm URL` only for an `/emailVerify/` link from the
+configured site. Verify successful activation through authenticated session status,
+not HTTP 200 alone. Do not invent an email, personal details or consent for an
 unrequested account. Passwords stay in private state, not conversation output.
 
 Other commands: `account`, `payments` (read methods only), `social`, `daily status`,

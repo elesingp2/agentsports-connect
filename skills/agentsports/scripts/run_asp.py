@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import sys
 
-SOURCE = 'git+https://github.com/elesingp2/agentsports-connect.git@v1.2.0'
+SOURCE = 'git+https://github.com/elesingp2/agentsports-connect.git@v1.2.1'
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
                 return subprocess.call([python, str(Path(__file__).resolve()), *sys.argv[1:]])
         print(json.dumps({'error': 'python_version', 'hint': 'Install Python 3.11+ or uv, then run this command again.'}), file=sys.stderr)
         return 3
-    root = Path(os.environ.get('ASP_TOOL_DIR', '~/.cache/agentsports/v1.2.0')).expanduser()
+    root = Path(os.environ.get('ASP_TOOL_DIR', '~/.cache/agentsports/v1.2.1')).expanduser()
     python = root / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
     marker = root / '.source'
     if not python.exists():

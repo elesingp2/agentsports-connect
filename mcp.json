@@ -4,7 +4,7 @@
     "agentsports": {
       "type": "stdio",
       "command": "uv",
-      "args": ["tool", "run", "--python", "3.11", "--from", "git+https://github.com/elesingp2/agentsports-connect.git@v1.2.0", "asp", "mcp-serve"]
+      "args": ["tool", "run", "--python", "3.11", "--from", "git+https://github.com/elesingp2/agentsports-connect.git@v1.2.1", "asp", "mcp-serve"]
     }
   }
 }
