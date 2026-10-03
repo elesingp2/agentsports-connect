@@ -25,10 +25,8 @@ A regular ChatGPT Chat without shell access needs a connected remote MCP server.
 Local stdio configurations are for clients that can launch local processes; they
 are not a public ChatGPT endpoint. See [OpenAI's connection guide](https://developers.openai.com/plugins/deploy/connect-chatgpt).
 
-The repository also contains portable `plugin.json`, `mcp.json` and Codex
-compatibility manifests for local plugin packaging. The bundled stdio MCP requires
-uv. The CLI skill can run without it. Public directory submission and a shared,
-authenticated remote service are separate deployment steps.
+The repository includes optional stdio MCP configurations in `mcp.json` and
+`.mcp.json`. They require uv. The CLI skill can run without it.
 
 ## CLI install
 
@@ -166,8 +164,7 @@ python3 -m build
 Tests exercise auth, session persistence, CSRF recovery, API errors, invalid
 predictions, stake limits, MCP stdio, structured outputs and public-mode isolation.
 They use mock HTTP responses and disposable directories, without live predictions
-or real-money transactions. CI tests Python 3.11 and 3.13 and verifies wheel
-resources outside the repository.
+or real-money transactions. Tests can be run locally on Python 3.11 and 3.13.
 
 [COUPON_TYPES.md](COUPON_TYPES.md) lists coupon types as background; current API
 rules are authoritative for an actual round.
