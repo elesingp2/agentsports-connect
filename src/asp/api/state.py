@@ -141,6 +141,11 @@ class StateManager:
             for path in [self.cookie_file, self.state_file, self.credentials_file]:
                 path.unlink(missing_ok=True)
 
+    def clear_credentials(self) -> None:
+        """Stop auto-relogin after the server rejects a saved password."""
+        with self.lock():
+            self.credentials_file.unlink(missing_ok=True)
+
     def _write_json(self, path: Path, value: Any) -> None:
         # Replacement is atomic and the file is private from creation, regardless of umask.
         fd, name = tempfile.mkstemp(dir=self.dir, prefix=f".{path.name}.")

@@ -113,6 +113,19 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
                 resp = http.request(method, path, headers=headers, **kwargs)
                 self._extract_csrf(resp, meta)
 
+                # This explicit error is returned before any action is performed.
+                # Refresh a stale token once; never retry arbitrary forbidden writes.
+                if resp.status_code == 403 and method.upper() != "GET" and self._parse_response(resp).get("error") == "invalid_request_confirmation":
+                    old_csrf = meta.get("csrf_token", "")
+                    details = http.get("/user/details")
+                    if details.is_success:
+                        self._extract_csrf(details, meta)
+                        refreshed_csrf = meta.get("csrf_token", "")
+                        if refreshed_csrf and refreshed_csrf != old_csrf:
+                            headers["X-CSRF-TOKEN"] = refreshed_csrf
+                            resp = http.request(method, path, headers=headers, **kwargs)
+                            self._extract_csrf(resp, meta)
+
                 if resp.status_code == 401 and allow_relogin:
                     resp = self._try_relogin(http, method, path, headers, meta, resp, kwargs)
                     self._extract_csrf(resp, meta)
@@ -144,6 +157,10 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
             headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
         if login_resp.status_code != 200:
+            if login_resp.status_code == 401 and self._parse_response(login_resp).get("error") == "invalid_credentials":
+                # A changed password must not cause repeated login attempts and a lockout.
+                self.state.clear_credentials()
+                meta["csrf_token"] = ""
             return orig_resp
 
         login_data = self._parse_response(login_resp)

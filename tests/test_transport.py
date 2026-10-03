@@ -97,3 +97,55 @@ def test_backend_minimum_cannot_bypass_stake_cap(tmp_path, monkeypatch, minimum)
     monkeypatch.setattr(api, 'request', lambda *a, **k: pytest.fail('Must not submit'))
     with pytest.raises(ValueError):
         api.predict('123', {'456': '8'}, stake=1)
+
+
+def test_stale_csrf_refreshes_once_before_retrying_write(tmp_path, monkeypatch):
+    api = AspClient(str(tmp_path))
+    api.state.save(httpx.Cookies(), {'csrf_token': 'old-token'})
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        if request.url.path == '/user/details':
+            return httpx.Response(200, text='<div data-request-confirmation="new-token"></div>',
+                                  headers={'content-type': 'text/html'})
+        if len(calls) == 1:
+            assert request.headers['X-CSRF-TOKEN'] == 'old-token'
+            return httpx.Response(403, json={'error': 'invalid_request_confirmation'})
+        assert request.headers['X-CSRF-TOKEN'] == 'new-token'
+        return httpx.Response(200, json={'success': True})
+
+    mock_http(monkeypatch, handler)
+    assert api.request('POST', '/api/daily/claim', json={})['success']
+    assert calls == ['/api/daily/claim', '/user/details', '/api/daily/claim']
+    assert api.state.load()[1]['csrf_token'] == 'new-token'
+
+
+def test_generic_forbidden_write_is_not_retried(tmp_path, monkeypatch):
+    calls = []
+
+    def handler(request):
+        calls.append(request)
+        return httpx.Response(403, json={'error': 'account_blocked'})
+
+    mock_http(monkeypatch, handler)
+    assert AspClient(str(tmp_path)).request('POST', '/api/daily/claim', json={})['error'] == 'account_blocked'
+    assert len(calls) == 1
+
+
+def test_rejected_saved_password_is_not_retried_on_subsequent_requests(tmp_path, monkeypatch):
+    api = AspClient(str(tmp_path))
+    api.state.save_credentials('test@example.com', 'old-password')
+    calls = []
+
+    def handler(request):
+        calls.append(request.url.path)
+        if request.url.path == '/api/login':
+            return httpx.Response(401, json={'error': 'invalid_credentials'})
+        return httpx.Response(401, json={'error': 'not_authenticated'})
+
+    mock_http(monkeypatch, handler)
+    assert api.account()['error'] == 'not_authenticated'
+    assert api.state.load_credentials() is None
+    assert api.account()['error'] == 'not_authenticated'
+    assert calls == ['/api/account', '/api/login', '/api/account']
