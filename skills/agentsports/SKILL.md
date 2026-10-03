@@ -67,11 +67,23 @@ credentials with a different saved account. Never repeat invalid credentials in 
 loop: the service has a login-attempt limit. Credentials and cookies are saved in
 private local files for later requests. `logout` ends the session and forgets them.
 
-Registration sends the user's details to agentsports.io and accepts the site's
-terms. Collect the required details and authorization before `register`. Ask the
-user to open their confirmation email or supply its link; use `confirm URL` only
-for an `/emailVerify/` link from the configured site. Do not infer successful
-activation from HTTP 200 alone.
+When the user asks to register, request **only their email address** and call:
+
+```bash
+python3 scripts/run_asp.py register --email user@example.com
+```
+
+Do not request a nickname, password, name, birth date, phone, country or address.
+The client generates a unique nickname and a cryptographically random password,
+accepts the site terms as part of registration, and saves credentials privately.
+It returns the nickname without printing the password. If the user voluntarily
+provides a nickname or password, the corresponding optional flags are supported.
+After a successful registration, tell the user their nickname, that the site terms
+were accepted, and that they need to confirm their email. Ask them to open the
+confirmation email or supply its activation link; use `confirm URL` only for an
+`/emailVerify/` link from the configured site. Do not infer successful activation
+from HTTP 200 alone. Do not invent an email, personal details or consent for an
+unrequested account. Passwords stay in private state, not conversation output.
 
 Other commands: `account`, `payments` (read methods only), `social`, `daily status`,
 `daily claim` (changes the account). Follow the user's scope before claims or writes.

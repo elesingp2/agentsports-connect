@@ -103,21 +103,21 @@ def logout(ctx: click.Context) -> None:
 
 
 @cli.command("register")
-@click.option("--username", required=True)
+@click.option("--username", default="", help="Generated automatically when omitted")
 @click.option("--email", required=True)
-@click.option("--password", required=True)
-@click.option("--first-name", required=True)
-@click.option("--last-name", required=True)
-@click.option("--birth-date", required=True, help="DD/MM/YYYY")
-@click.option("--phone", required=True)
-@click.option("--country-code", default="US")
+@click.option("--password", default="", help="Generated securely and saved privately when omitted")
+@click.option("--first-name", default="")
+@click.option("--last-name", default="")
+@click.option("--birth-date", default="", help="Optional: DD/MM/YYYY")
+@click.option("--phone", default="")
+@click.option("--country-code", default="")
 @click.option("--city", default="")
 @click.option("--address", default="")
 @click.option("--zip-code", default="")
-@click.option("--sex", default="male", type=click.Choice(["male", "female"]))
+@click.option("--sex", default="", type=click.Choice(["", "male", "female"]))
 @click.pass_context
 def register(ctx: click.Context, **kwargs: Any) -> None:
-    """Register a new account."""
+    """Register with email only; generate credentials and accept site terms."""
     _run(ctx.obj["client"].register, **kwargs)
 
 

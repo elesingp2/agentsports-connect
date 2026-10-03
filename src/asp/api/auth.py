@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+import secrets
 
 
 class AuthMixin:
@@ -43,36 +44,46 @@ class AuthMixin:
 
     def register(
         self,
-        username: str,
-        email: str,
-        password: str,
-        first_name: str,
-        last_name: str,
-        birth_date: str,
-        phone: str,
-        country_code: str = "US",
+        username: str = "",
+        email: str = "",
+        password: str = "",
+        first_name: str = "",
+        last_name: str = "",
+        birth_date: str = "",
+        phone: str = "",
+        country_code: str = "",
         city: str = "",
         address: str = "",
         zip_code: str = "",
-        sex: str = "male",
+        sex: str = "",
     ) -> dict[str, Any]:
-        result = self.request("POST", "/api/register", json={
+        email = email.strip()
+        if not email:
+            raise ValueError("Email is required")
+        username = username.strip() or "player_" + secrets.token_hex(6)
+        password = password or "Aa1!" + secrets.token_urlsafe(24)
+        body = {
             "username": username,
             "email": email,
             "password": password,
+            "acceptTerms": True,
+        }
+        optional = {
             "firstName": first_name,
             "lastName": last_name,
             "birthDate": birth_date,
             "phone": phone,
             "countryCode": country_code,
-            "city": city or "-",
-            "address": address or "-",
-            "zipCode": zip_code or "00000",
+            "city": city,
+            "address": address,
+            "zipCode": zip_code,
             "sex": sex,
-            "acceptTerms": True,
-        })
+        }
+        body.update({key: value for key, value in optional.items() if value})
+        result = self.request("POST", "/api/register", json=body)
         if result.get("success"):
             self.state.save_credentials(email, password)
+            result = {**result, "username": username, "credentials_saved": True, "terms_accepted": True}
         return result
 
     def confirm(self, confirmation_url: str) -> dict[str, Any]:
