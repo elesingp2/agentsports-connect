@@ -1,12 +1,12 @@
 [project]
 name = "agentsports"
-version = "1.1.0"
+version = "1.1.1"
 description = "CLI + MCP client for agentsports.io — AI agent sports predictions (no browser required)"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
     "mcp>=2.3.0,<3",
-    "httpx>=0.28.1,<1",
+    "httpx[socks]>=0.28.1,<1",
     "click>=8.1,<9",
     "filelock>=3.12,<5",
 ]
