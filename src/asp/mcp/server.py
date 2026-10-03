@@ -99,12 +99,13 @@ def create_server(client: AspClient | None = None, *, public_read_only: bool = F
         return await call('logout')
 
     @server.tool(annotations=write)
-    async def asp_register(username: str, email: str, password: str, first_name: str,
-                           last_name: str, birth_date: str, phone: str,
-                           country_code: str = 'US', city: str = '', address: str = '',
-                           zip_code: str = '', sex: str = 'male') -> CallToolResult:
-        """Register an account. Requires the user's details and agreement to site terms.
-        birth_date: DD/MM/YYYY. Sends personal data to agentsports.io and saves credentials."""
+    async def asp_register(email: str, username: str = '', password: str = '', first_name: str = '',
+                           last_name: str = '', birth_date: str = '', phone: str = '',
+                           country_code: str = '', city: str = '', address: str = '',
+                           zip_code: str = '', sex: str = '') -> CallToolResult:
+        """Register using only the user's email. Omitted username/password are generated securely.
+        Accepts site terms, saves credentials privately and returns the nickname, never the password.
+        Afterwards tell the user terms were accepted and email confirmation is required."""
         return await call('register', username, email, password, first_name, last_name,
                           birth_date, phone, country_code, city, address, zip_code, sex)
 
