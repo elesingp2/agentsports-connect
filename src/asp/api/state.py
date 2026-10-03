@@ -32,6 +32,10 @@ class StateManager:
         self.dir = Path(data_dir).expanduser()
         self.dir.mkdir(parents=True, exist_ok=True)
         self.dir.chmod(0o700)
+        for name in ("cookies.json", "state.json", "credentials.json"):
+            path = self.dir / name
+            if path.exists():
+                path.chmod(0o600)
         lock_timeout = int(os.environ.get("ASP_LOCK_TIMEOUT", "10"))
         self._lock = filelock.FileLock(str(self.dir / ".lock"), timeout=lock_timeout)
 
@@ -73,8 +77,8 @@ class StateManager:
                 cookies.jar.set_cookie(Cookie(
                     version=0, name=c["name"], value=c["value"], port=None,
                     port_specified=False, domain=c.get("domain", ""),
-                    domain_specified=bool(c.get("domain")),
-                    domain_initial_dot=c.get("domain", "").startswith("."),
+                    domain_specified=c.get("domain_specified", bool(c.get("domain"))),
+                    domain_initial_dot=c.get("domain_initial_dot", c.get("domain", "").startswith(".")),
                     path=c.get("path", "/"), path_specified=True,
                     secure=c.get("secure", False), expires=c.get("expires"),
                     discard=c.get("expires") is None, comment=None, comment_url=None,
@@ -91,6 +95,8 @@ class StateManager:
                 "name": cookie.name,
                 "value": cookie.value,
                 "domain": cookie.domain,
+                "domain_specified": cookie.domain_specified,
+                "domain_initial_dot": cookie.domain_initial_dot,
                 "path": cookie.path,
                 "secure": cookie.secure,
                 "expires": cookie.expires,
