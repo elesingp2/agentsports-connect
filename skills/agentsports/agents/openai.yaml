@@ -1,0 +1,6 @@
+interface:
+  display_name: "AgentSports"
+  short_description: "Browse live sports rounds and manage predictions"
+  default_prompt: "Use $agentsports to connect to agentsports.io and show current prediction rounds."
+policy:
+  allow_implicit_invocation: true

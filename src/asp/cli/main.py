@@ -53,12 +53,22 @@ def _run(fn, *args: Any, **kwargs: Any) -> None:
 
     _output(result)
 
-    if result.get("error"):
+    if result.get("error") or result.get("success") is False:
         sys.exit(EXIT_API_ERROR)
     sys.exit(EXIT_OK)
 
 
-@click.group()
+class JsonGroup(click.Group):
+    def main(self, *args: Any, **kwargs: Any) -> Any:
+        kwargs["standalone_mode"] = False
+        try:
+            return super().main(*args, **kwargs)
+        except (click.UsageError, ValueError) as exc:
+            click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
+            sys.exit(EXIT_BAD_ARGS)
+
+
+@click.group(cls=JsonGroup)
 @click.option("--data-dir", envvar="ASP_DATA_DIR", default="~/.asp/", help="State directory")
 @click.pass_context
 def cli(ctx: click.Context, data_dir: str) -> None:
@@ -226,10 +236,16 @@ def daily_claim(ctx: click.Context) -> None:
 @click.option("--transport", default="stdio", type=click.Choice(["stdio", "streamable-http"]))
 @click.option("--port", default=8000, type=int, help="HTTP port (streamable-http only)")
 @click.option("--host", default="127.0.0.1", help="HTTP host (streamable-http only)")
-def mcp_serve(transport: str, port: int, host: str) -> None:
+@click.option("--public-read-only", is_flag=True, help="Expose only anonymous round/status tools")
+@click.pass_context
+def mcp_serve(ctx: click.Context, transport: str, port: int, host: str, public_read_only: bool) -> None:
     """Start MCP server (stdio or HTTP)."""
     from asp.mcp.server import run
-    run(transport=transport, host=host, port=port)
+    try:
+        run(transport=transport, host=host, port=port, client=ctx.obj["client"], public_read_only=public_read_only)
+    except ValueError as exc:
+        click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
+        sys.exit(EXIT_BAD_ARGS)
 
 
 def main() -> None:

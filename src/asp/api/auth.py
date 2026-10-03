@@ -13,8 +13,10 @@ class AuthMixin:
 
     def login(self, email: str | None = None, password: str | None = None) -> dict[str, Any]:
         email = (email or "").strip()
-        password = (password or "").strip()
-        if not email or not password:
+        password = password or ""
+        if bool(email) != bool(password):
+            return {"error": "missing_credentials", "hint": "Provide both email and password, or omit both."}
+        if not email and not password:
             creds = self.state.load_credentials()
             if creds:
                 email, password = creds["email"], creds["password"]
@@ -33,7 +35,10 @@ class AuthMixin:
         return result
 
     def logout(self) -> dict[str, Any]:
-        result = self.request("POST", "/api/logout", _clear_csrf=True)
+        result = self.request("POST", "/api/logout", _clear_csrf=True, _allow_relogin=False)
+        if not result.get("error") or result.get("error") == "not_authenticated":
+            self.state.clear()
+            return {"status": "ok"}
         return result
 
     def register(
@@ -71,11 +76,15 @@ class AuthMixin:
         return result
 
     def confirm(self, confirmation_url: str) -> dict[str, Any]:
-        if not confirmation_url.startswith("http"):
-            confirmation_url = f"{self._base_url}{confirmation_url}"
-        from urllib.parse import urlparse
-        allowed = urlparse(self._base_url).netloc
-        actual = urlparse(confirmation_url).netloc
-        if actual != allowed:
-            return {"error": "invalid_confirmation_url", "detail": f"URL must belong to {allowed}"}
-        return self._raw_get(confirmation_url)
+        from urllib.parse import urljoin, urlparse
+        import re
+        confirmation_url = urljoin(self._base_url + "/", confirmation_url)
+        parsed = urlparse(confirmation_url)
+        if not self._same_origin(confirmation_url) or not re.fullmatch(r"/emailVerify/[^/]+", parsed.path):
+            return {"error": "invalid_confirmation_url", "detail": "Use the emailVerify link from this site's confirmation email."}
+        result = self._raw_get(confirmation_url)
+        if result.get("error") or result.get("status", 500) >= 400:
+            return {**result, "confirmed": False, "error": result.get("error", "confirmation_failed")}
+        status = self.auth_status()
+        return {**result, "confirmed": status.get("authenticated") is True,
+                **({"error": "confirmation_failed"} if not status.get("authenticated") else {})}
