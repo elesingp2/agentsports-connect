@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import tempfile
+from http.cookiejar import Cookie
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,7 @@ class StateManager:
     def __init__(self, data_dir: str = DEFAULT_DATA_DIR):
         self.dir = Path(data_dir).expanduser()
         self.dir.mkdir(parents=True, exist_ok=True)
+        self.dir.chmod(0o700)
         lock_timeout = int(os.environ.get("ASP_LOCK_TIMEOUT", "10"))
         self._lock = filelock.FileLock(str(self.dir / ".lock"), timeout=lock_timeout)
 
@@ -67,7 +70,16 @@ class StateManager:
             return cookies
         try:
             for c in json.loads(self.cookie_file.read_text()):
-                cookies.set(c["name"], c["value"], domain=c.get("domain", ""))
+                cookies.jar.set_cookie(Cookie(
+                    version=0, name=c["name"], value=c["value"], port=None,
+                    port_specified=False, domain=c.get("domain", ""),
+                    domain_specified=bool(c.get("domain")),
+                    domain_initial_dot=c.get("domain", "").startswith("."),
+                    path=c.get("path", "/"), path_specified=True,
+                    secure=c.get("secure", False), expires=c.get("expires"),
+                    discard=c.get("expires") is None, comment=None, comment_url=None,
+                    rest=c.get("rest", {}), rfc2109=False,
+                ))
         except Exception:
             log.debug("Failed to load cookies", exc_info=True)
         return cookies
@@ -80,8 +92,11 @@ class StateManager:
                 "value": cookie.value,
                 "domain": cookie.domain,
                 "path": cookie.path,
+                "secure": cookie.secure,
+                "expires": cookie.expires,
+                "rest": cookie._rest,
             })
-        self.cookie_file.write_text(json.dumps(jar_list, ensure_ascii=False, indent=2))
+        self._write_json(self.cookie_file, jar_list)
 
     # ── metadata ───────────────────────────────────────────────────────
 
@@ -89,12 +104,13 @@ class StateManager:
         if not self.state_file.exists():
             return {}
         try:
-            return json.loads(self.state_file.read_text())
+            data = json.loads(self.state_file.read_text())
+            return data if isinstance(data, dict) else {}
         except Exception:
             return {}
 
     def _save_meta(self, meta: dict[str, Any]) -> None:
-        self.state_file.write_text(json.dumps(meta, ensure_ascii=False, indent=2))
+        self._write_json(self.state_file, meta)
 
     # ── credentials ────────────────────────────────────────────────────
 
@@ -103,14 +119,30 @@ class StateManager:
             return None
         try:
             data = json.loads(self.credentials_file.read_text())
-            if data.get("email") and data.get("password"):
+            if isinstance(data, dict) and data.get("email") and data.get("password"):
                 return data
         except Exception:
             pass
         return None
 
     def save_credentials(self, email: str, password: str) -> None:
-        self.credentials_file.write_text(
-            json.dumps({"email": email, "password": password}, indent=2)
-        )
+        with self.lock():
+            self._write_json(self.credentials_file, {"email": email, "password": password})
 
+    def clear(self) -> None:
+        """Forget the local login, including credentials used for auto-relogin."""
+        with self.lock():
+            for path in [self.cookie_file, self.state_file, self.credentials_file]:
+                path.unlink(missing_ok=True)
+
+    def _write_json(self, path: Path, value: Any) -> None:
+        # Replacement is atomic and the file is private from creation, regardless of umask.
+        fd, name = tempfile.mkstemp(dir=self.dir, prefix=f".{path.name}.")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as stream:
+                json.dump(value, stream, ensure_ascii=False, indent=2)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(name, path)
+        finally:
+            Path(name).unlink(missing_ok=True)

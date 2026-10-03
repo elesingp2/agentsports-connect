@@ -1,208 +1,171 @@
-"""MCP server — thin wrappers delegating to AspClient.
+"""MCP v2 tools backed by the shared API client.
 
-All business logic lives in asp.api. This module only defines MCP tool
-handlers, JSON serialization, and transport setup.
+Private mode is a single-user local server. Public read-only mode has no login,
+credentials, account tools or disk state shared between requests.
 """
-
 from __future__ import annotations
 
 import asyncio
 import json
 import os
-from pathlib import Path
+import tempfile
+from importlib.resources import files
 from typing import Any
 
-from mcp.server.fastmcp import FastMCP
+import filelock
+import httpx
+from mcp.server.mcpserver import MCPServer
+from mcp.types import CallToolResult, TextContent, ToolAnnotations
 
+from asp import __version__
 from asp.api import AspClient
 
 
 def _load_instructions() -> str:
-    for candidate in [
-        Path(__file__).resolve().parent.parent.parent.parent / "SKILL.md",
-        Path.cwd() / "SKILL.md",
-    ]:
-        if candidate.exists():
-            text = candidate.read_text(encoding="utf-8")
-            if text.startswith("---"):
-                end = text.find("---", 3)
-                if end != -1:
-                    text = text[end + 3:].lstrip("\n")
-            return text
-    return ""
+    # Never load an unrelated SKILL.md from the process working directory.
+    return files('asp').joinpath('resources/mcp-instructions.md').read_text(encoding='utf-8')
 
 
-mcp = FastMCP("agentsports", instructions=_load_instructions())
-
-_client: AspClient | None = None
-_lock = asyncio.Lock()
-
-
-def _get_client() -> AspClient:
-    global _client
-    if _client is None:
-        _client = AspClient(data_dir=os.environ.get("ASP_DATA_DIR", "~/.asp/"))
-    return _client
+def _result(value: dict[str, Any]) -> CallToolResult:
+    failed = bool(value.get('error')) or value.get('success') is False or value.get('confirmed') is False
+    return CallToolResult(content=[TextContent(type='text', text=json.dumps(value, ensure_ascii=False))],
+                          structured_content=value, is_error=failed)
 
 
-def _j(value: Any) -> str:
-    return json.dumps(value, ensure_ascii=False, default=str)
+def create_server(client: AspClient | None = None, *, public_read_only: bool = False) -> MCPServer:
+    server = MCPServer('agentsports', title='AgentSports', version=__version__,
+                       instructions=_load_instructions(), website_url='https://agentsports.io')
+    lock = asyncio.Lock()
+    private_client = client
+    readonly = ToolAnnotations(read_only_hint=True, destructive_hint=False, idempotent_hint=True, open_world_hint=True)
+    write = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True)
+
+    async def call(method: str, *args: Any, **kwargs: Any) -> CallToolResult:
+        nonlocal private_client
+        try:
+            async with lock:
+                if public_read_only:
+                    with tempfile.TemporaryDirectory(prefix='asp-public-') as directory:
+                        public_client = AspClient(data_dir=directory)
+                        value = await asyncio.to_thread(getattr(public_client, method), *args, **kwargs)
+                else:
+                    if private_client is None:
+                        private_client = AspClient(data_dir=os.environ.get('ASP_DATA_DIR', '~/.asp/'))
+                    value = await asyncio.to_thread(getattr(private_client, method), *args, **kwargs)
+            return _result(value)
+        except filelock.Timeout:
+            return _result({'error': 'lock_timeout'})
+        except httpx.TimeoutException:
+            return _result({'error': 'timeout', 'hint': 'The site may be waking up. Read requests can be tried again.'})
+        except httpx.HTTPError:
+            return _result({'error': 'network_error'})
+        except ValueError as exc:
+            return _result({'error': 'invalid_argument', 'detail': str(exc)})
+
+    @server.tool(annotations=readonly)
+    async def asp_auth_status() -> CallToolResult:
+        """Check authentication and balances. Call first; anonymous users can browse rounds."""
+        return await call('auth_status')
+
+    @server.tool(annotations=readonly)
+    async def asp_coupons() -> CallToolResult:
+        """List current prediction rounds. An empty coupons array means there are no active rounds."""
+        return await call('coupons')
+
+    @server.tool(annotations=readonly)
+    async def asp_coupon(path: str) -> CallToolResult:
+        """Get events, outcome codes, room indices, currencies and stake limits for a round.
+        Accepts numeric ID or /SPORT/league/ID. Read before preparing a prediction."""
+        return await call('coupon_details', path)
+
+    @server.tool(annotations=readonly)
+    async def asp_rules(path: str) -> CallToolResult:
+        """Get scoring rules, selectionTemplate, codes and valid pointer values for a round.
+        Read before using a new coupon type. Never invent or hardcode outcome codes."""
+        return await call('coupon_rules', path)
+
+    if public_read_only:
+        return server
+
+    @server.tool(annotations=write)
+    async def asp_login(email: str = '', password: str = '') -> CallToolResult:
+        """Log in with both email and password, or omit both to reuse saved credentials.
+        Credentials are saved privately in this user's state directory for auto-relogin."""
+        return await call('login', email or None, password or None)
+
+    @server.tool(annotations=write)
+    async def asp_logout() -> CallToolResult:
+        """End the session and remove locally saved credentials, cookies and session token."""
+        return await call('logout')
+
+    @server.tool(annotations=write)
+    async def asp_register(username: str, email: str, password: str, first_name: str,
+                           last_name: str, birth_date: str, phone: str,
+                           country_code: str = 'US', city: str = '', address: str = '',
+                           zip_code: str = '', sex: str = 'male') -> CallToolResult:
+        """Register an account. Requires the user's details and agreement to site terms.
+        birth_date: DD/MM/YYYY. Sends personal data to agentsports.io and saves credentials."""
+        return await call('register', username, email, password, first_name, last_name,
+                          birth_date, phone, country_code, city, address, zip_code, sex)
+
+    @server.tool(annotations=write)
+    async def asp_confirm(confirmation_url: str) -> CallToolResult:
+        """Activate an account using this site's /emailVerify/ link. Reports verified session status."""
+        return await call('confirm', confirmation_url)
+
+    @server.tool(annotations=write)
+    async def asp_predict(coupon_path: str, selections: str | dict[str, Any],
+                          room_index: int = 0, stake: str | int | float = '') -> CallToolResult:
+        """Submit a prediction only within the user's authorized room and stake limits.
+        Read coupon and rules first. Selections map eventId or eventId:aspectCode to scalar values.
+        Room indices and currencies come from the live coupon; they are not universal.
+        Never retry a submission after a timeout without checking prediction history."""
+        return await call('predict', coupon_path, selections, room_index, stake)
+
+    @server.tool(annotations=readonly)
+    async def asp_predictions(active_only: bool = False) -> CallToolResult:
+        """Get calculated history, or pending predictions when active_only=true."""
+        return await call('active_predictions' if active_only else 'prediction_history')
+
+    @server.tool(annotations=readonly)
+    async def asp_account() -> CallToolResult:
+        """Get current user's account details and balances."""
+        return await call('account')
+
+    @server.tool(annotations=readonly)
+    async def asp_payments() -> CallToolResult:
+        """Read deposit and withdrawal methods. This tool does not transfer money."""
+        return await call('payment_methods')
+
+    @server.tool(annotations=write)
+    async def asp_daily(claim: bool = False) -> CallToolResult:
+        """Check the daily bonus. claim=true changes the account by claiming it."""
+        return await call('daily_claim' if claim else 'daily_status')
+
+    @server.tool(annotations=readonly)
+    async def asp_social() -> CallToolResult:
+        """Read current user's friends and referral link."""
+        return await call('social')
+
+    return server
 
 
-async def _call(fn, *args: Any, **kwargs: Any) -> str:
-    """Run a sync AspClient method under asyncio lock."""
-    async with _lock:
-        result = await asyncio.to_thread(fn, *args, **kwargs)
-    return _j(result)
-
-
-# ── Auth ──────────────────────────────────────────────────────────────────
-
-@mcp.tool()
-async def asp_register(
-    username: str,
-    email: str,
-    password: str,
-    first_name: str,
-    last_name: str,
-    birth_date: str,
-    phone: str,
-    country_code: str = "US",
-    city: str = "",
-    address: str = "",
-    zip_code: str = "",
-    sex: str = "male",
-) -> str:
-    """Register a new account (PII sent to agentsports.io — confirm with user first).
-    birth_date: DD/MM/YYYY, country_code: ISO 2-letter. Password: min 8 chars, upper/lower/numbers.
-    New accounts get 100 free ASP tokens. Credentials auto-saved to ~/.asp/."""
-    async with _lock:
-        result = await asyncio.to_thread(
-            _get_client().register, username, email, password, first_name, last_name,
-            birth_date, phone, country_code, city, address, zip_code, sex,
-        )
-    return _j(result)
-
-
-@mcp.tool()
-async def asp_confirm(confirmation_url: str) -> str:
-    """Activate account using the email confirmation link."""
-    return await _call(_get_client().confirm, confirmation_url)
-
-
-@mcp.tool()
-async def asp_login(email: str = "", password: str = "") -> str:
-    """Log in. ALWAYS pass email+password when user provides them.
-    Omit both to reuse saved credentials. If 'player_already_logged_in' → asp_logout() first."""
-    async with _lock:
-        result = await asyncio.to_thread(_get_client().login, email or None, password or None)
-    return _j(result)
-
-
-@mcp.tool()
-async def asp_logout() -> str:
-    """End session."""
-    return await _call(_get_client().logout)
-
-
-@mcp.tool()
-async def asp_auth_status() -> str:
-    """Check session + balances. Call first — if authenticated, no login needed."""
-    return await _call(_get_client().auth_status)
-
-
-# ── Predictions ───────────────────────────────────────────────────────────
-
-@mcp.tool()
-async def asp_coupons() -> str:
-    """List available prediction rounds: {coupons: [{id, path, sport, league, status, eventsCount, startTime}]}.
-    Use id or path in asp_coupon."""
-    return await _call(_get_client().coupons)
-
-
-@mcp.tool()
-async def asp_coupon(path: str) -> str:
-    """Get round events, outcomes, rooms and stakes. ALWAYS call before submitting a prediction.
-    Accepts path ('/FOOTBALL/laLiga/18638') or numeric ID ('18638').
-    For scoring rules, call asp_rules(path) separately."""
-    return await _call(_get_client().coupon_details, path)
-
-
-@mcp.tool()
-async def asp_rules(path: str) -> str:
-    """Get detailed scoring rules for a prediction round.
-    Returns the scoring matrix that determines how prediction accuracy is evaluated (0-100 points).
-    The matrix maps each (prediction, actual_result) pair to a point score.
-    Use this to make informed predictions — closer predictions to the actual outcome earn more points."""
-    return await _call(_get_client().coupon_rules, path)
-
-
-@mcp.tool()
-async def asp_predict(
-    coupon_path: str,
-    selections: str | dict,
-    room_index: int = 0,
-    stake: str | int | float = "",
-) -> str:
-    """Submit a prediction (rooms 1-3 use real money — confirm with user first).
-    selections: {"eventId": "outcomeCode"} (1X2: "8"=home, "9"=draw, "10"=away).
-    room_index: 0=Wooden(ASP) 1=Bronze(EUR) 2=Silver 3=Golden. stake: amount or empty for default."""
-    async with _lock:
-        result = await asyncio.to_thread(
-            _get_client().predict, coupon_path, selections, room_index, stake,
-        )
-    return _j(result)
-
-
-# ── Monitoring ────────────────────────────────────────────────────────────
-
-@mcp.tool()
-async def asp_predictions(active_only: bool = False) -> str:
-    """Prediction history (active_only=false) returns calculated entries only — points != '-'.
-    active_only=true returns pending predictions. Each entry: id, sport, room, stake, points (0-100), winning, status, selections."""
-    return await _call(_get_client().predictions, active_only=active_only)
-
-
-@mcp.tool()
-async def asp_account() -> str:
-    """Account details: name, email, balances, registration date."""
-    return await _call(_get_client().account)
-
-
-@mcp.tool()
-async def asp_payments() -> str:
-    """Deposit and withdrawal methods with fees and limits."""
-    return await _call(_get_client().payment_methods)
-
-
-# ── Daily & Social ────────────────────────────────────────────────────────
-
-@mcp.tool()
-async def asp_daily(claim: bool = False) -> str:
-    """Daily bonus. claim=false → check status (available, amount, countdown).
-    claim=true → claim bonus. Check status first to see if available."""
-    if claim:
-        return await _call(_get_client().daily_claim)
-    return await _call(_get_client().daily_status)
-
-
-@mcp.tool()
-async def asp_social() -> str:
-    """Friends list, invite link for referral bonuses."""
-    return await _call(_get_client().social)
-
-
-def run(transport: str = "stdio", host: str = "127.0.0.1", port: int = 8000) -> None:
-    """Start the MCP server with given transport."""
-    if transport != "stdio":
-        mcp.settings.host = host
-        mcp.settings.port = port
-    mcp.run(transport=transport)
+def run(transport: str = 'stdio', host: str = '127.0.0.1', port: int = 8000,
+        *, client: AspClient | None = None, public_read_only: bool = False) -> None:
+    if transport not in ('stdio', 'streamable-http'):
+        raise ValueError('Transport must be stdio or streamable-http')
+    if transport != 'stdio' and host not in ('127.0.0.1', 'localhost', '::1') and not public_read_only:
+        raise ValueError('Private HTTP shares one user session; bind to loopback or use --public-read-only')
+    server = create_server(client, public_read_only=public_read_only)
+    if transport == 'stdio':
+        server.run(transport='stdio')
+    else:
+        server.run(transport='streamable-http', host=host, port=port,
+                   json_response=True, stateless_http=public_read_only)
 
 
 def _legacy_main() -> None:
-    """Entry point for backward-compatible `asp-mcp` command."""
-    transport = os.environ.get("ASP_TRANSPORT", "stdio")
-    host = os.environ.get("ASP_HOST", "127.0.0.1")
-    port = int(os.environ.get("ASP_PORT", "8000"))
-    run(transport=transport, host=host, port=port)
+    run(transport=os.environ.get('ASP_TRANSPORT', 'stdio'),
+        host=os.environ.get('ASP_HOST', '127.0.0.1'),
+        port=int(os.environ.get('ASP_PORT', '8000')),
+        public_read_only=os.environ.get('ASP_PUBLIC_READ_ONLY', '').lower() in ('1', 'true'))

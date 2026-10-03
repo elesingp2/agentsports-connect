@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import logging
 import os
+import hashlib
+import re
+from pathlib import Path
+from decimal import Decimal, InvalidOperation
+from urllib.parse import urljoin, urlparse
 from typing import Any
 
 import httpx
@@ -21,7 +26,7 @@ from .state import StateManager
 log = logging.getLogger(__name__)
 
 DEFAULT_BASE_URL = "https://agentsports.io"
-_TIMEOUT = httpx.Timeout(30.0, connect=10.0)
+_TIMEOUT = httpx.Timeout(60.0, connect=15.0)
 
 
 class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
@@ -33,16 +38,36 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
     """
 
     def __init__(self, data_dir: str = "~/.asp/", base_url: str | None = None):
-        self.state = StateManager(data_dir)
         self._base_url = (
             base_url or os.environ.get("ASP_BASE_URL", DEFAULT_BASE_URL)
         ).rstrip("/")
+        parsed = urlparse(self._base_url)
+        if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment or parsed.path:
+            raise ValueError("ASP_BASE_URL must be an HTTP(S) origin without credentials or a path")
+        # Retain primary-site state location; isolate every alternate origin (local dev included).
+        if self._base_url != DEFAULT_BASE_URL:
+            scope = hashlib.sha256(self._base_url.encode()).hexdigest()[:16]
+            data_dir = str(Path(data_dir).expanduser() / "origins" / scope)
+        self.state = StateManager(data_dir)
         self._max_stake = self._parse_max_stake()
 
     @staticmethod
-    def _parse_max_stake() -> float | None:
+    def _parse_max_stake() -> Decimal | None:
         raw = os.environ.get("ASP_MAX_STAKE", "").strip()
-        return float(raw) if raw else None
+        if not raw:
+            return None
+        try:
+            value = Decimal(raw)
+        except InvalidOperation:
+            raise ValueError("ASP_MAX_STAKE must be a positive finite number") from None
+        if not value.is_finite() or value <= 0:
+            raise ValueError("ASP_MAX_STAKE must be a positive finite number")
+        return value
+
+    def _same_origin(self, url: str) -> bool:
+        a, b = urlparse(self._base_url), urlparse(url)
+        return (b.username is None and b.password is None and
+                (a.scheme, a.hostname, a.port) == (b.scheme, b.hostname, b.port))
 
     def request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         """Atomic HTTP request with auto-persist and optional auto-relogin.
@@ -76,13 +101,21 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
                 base_url=self._base_url,
                 cookies=cookies,
                 timeout=_TIMEOUT,
-                follow_redirects=True,
+                follow_redirects=False,
             ) as http:
+                # Email activation creates a browser session without an API sessionToken.
+                # The existing account page contains the same token used by the site's forms.
+                if method.upper() != "GET" and path not in ("/api/login", "/api/register") and not csrf and cookies:
+                    details = http.get("/user/details")
+                    self._extract_csrf(details, meta)
+                    if meta.get("csrf_token"):
+                        headers["X-CSRF-TOKEN"] = meta["csrf_token"]
                 resp = http.request(method, path, headers=headers, **kwargs)
                 self._extract_csrf(resp, meta)
 
                 if resp.status_code == 401 and allow_relogin:
                     resp = self._try_relogin(http, method, path, headers, meta, resp, kwargs)
+                    self._extract_csrf(resp, meta)
 
                 if clear_csrf:
                     meta["csrf_token"] = ""
@@ -132,14 +165,22 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
             with httpx.Client(
                 cookies=cookies,
                 timeout=_TIMEOUT,
-                follow_redirects=True,
+                follow_redirects=False,
             ) as http:
                 resp = http.get(url)
+                for _ in range(5):
+                    if not resp.is_redirect:
+                        break
+                    target = urljoin(str(resp.url), resp.headers.get("location", ""))
+                    if not self._same_origin(target):
+                        return {"error": "unsafe_confirmation_redirect", "status": resp.status_code}
+                    resp = http.get(target)
+                if resp.is_redirect:
+                    return {"error": "too_many_redirects", "status": resp.status_code}
+                self._extract_csrf(resp, meta)
                 self.state.save(http.cookies, meta)
         return {
-            "confirmed": resp.status_code in (200, 302),
             "status": resp.status_code,
-            "url": str(resp.url),
         }
 
     @staticmethod
@@ -149,15 +190,24 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
         if not csrf:
             try:
                 body = resp.json()
-                csrf = body.get("sessionToken") or body.get("csrf_token")
+                if isinstance(body, dict):
+                    csrf = body.get("sessionToken") or body.get("csrf_token")
             except Exception:
-                pass
+                if "text/html" in resp.headers.get("content-type", ""):
+                    match = re.search(r'data-request-confirmation=["\']([^"\']+)["\']', resp.text)
+                    csrf = match.group(1) if match else None
         if csrf:
             meta["csrf_token"] = csrf
 
     @staticmethod
     def _parse_response(resp: httpx.Response) -> dict[str, Any]:
         try:
-            return resp.json()
-        except Exception:
-            return {"error": "invalid_response", "status": resp.status_code, "body": resp.text[:500]}
+            body = resp.json()
+        except ValueError:
+            body = None
+        if not isinstance(body, dict):
+            # Avoid reflecting HTML, cookies, confirmation tokens, or credentials in tool output.
+            return {"error": "invalid_response", "status": resp.status_code}
+        if not resp.is_success and not body.get("error"):
+            return {**body, "error": "http_error", "status": resp.status_code}
+        return body
