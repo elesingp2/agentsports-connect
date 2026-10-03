@@ -53,7 +53,7 @@ def _run(fn, *args: Any, **kwargs: Any) -> None:
 
     _output(result)
 
-    if result.get("error"):
+    if result.get("error") or result.get("success") is False:
         sys.exit(EXIT_API_ERROR)
     sys.exit(EXIT_OK)
 
