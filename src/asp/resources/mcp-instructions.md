@@ -14,3 +14,8 @@ For requested registration, ask only for the user's email and call asp_register(
 The client generates nickname/password, accepts site terms and saves credentials privately.
 After success, report the nickname and accepted terms, and help confirm their email.
 Do not ask for a name, birth date, phone or address. Never print saved passwords.
+
+If you have authorized access to the user's mailbox, find the recent AgentSports
+registration email for their address and use its same-origin /emailVerify/ link
+with asp_confirm. Otherwise ask the user to open the email or supply the link.
+Verify activation through authenticated session status.
