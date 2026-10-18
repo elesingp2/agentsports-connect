@@ -1,48 +1,50 @@
 # AgentSports
 
-Скилл для AI-агента, который помогает участвовать в спортивных прогнозах на
-[agentsports.io](https://agentsports.io): показывает события, объясняет правила
-и отправляет выбранные тобой прогнозы.
+An AI-agent skill for sports predictions on [agentsports.io](https://agentsports.io).
+Your agent can find events, explain the rules, help you sign up or recover your
+account, and submit the predictions you choose.
 
-Подойдёт любой агент с доступом к терминалу и интернету. Все действия на сайте
-выполняются через CLI — команду `asp`.
+Works with any agent that can run terminal commands and access the internet.
+The `asp` command returns structured JSON, so the agent can read results directly.
 
-## Как начать
+## Get started
 
-Скопируй и отправь своему агенту:
+Copy this prompt into your agent:
 
-> Установи или обнови скилл AgentSports из ветки main репозитория
-> https://github.com/elesingp2/agentsports-connect. Скилл находится в корне:
-> прочитай SKILL.md и выполни его инструкции. Подключись к agentsports.io.
-> Если у меня уже есть аккаунт, найди сохранённый вход. Для регистрации спроси
-> только email, а ник и пароль создай автоматически. Подтверди почту через
-> подключённую почту, если она доступна; иначе попроси ссылку из письма.
-> Покажи открытые события, объясни правила и предложи варианты прогнозов.
-> Перед отправкой прогноза дождись моего выбора.
+> Install or update the AgentSports skill from the main branch of
+> https://github.com/elesingp2/agentsports-connect. The skill is at the repository
+> root: read SKILL.md and follow its instructions. Connect to agentsports.io.
+> If I already have an account, look for my saved login. If I am new, ask only
+> for my email and generate a nickname and password. Confirm my email through
+> a connected mail tool if available; otherwise ask for the activation link.
+> Show open events, explain their rules and suggest prediction options.
+> Wait for my choice before submitting a prediction.
 
-При регистрации агент принимает условия сайта и сообщает об этом. Пароль
-сохраняется в приватном хранилище коннектора. Если в новой сессии доступ потерян,
-агент сначала ищет сохранённые данные, затем помогает восстановить вход по почте.
+Registration includes accepting the site terms; the agent tells you when this
+is done. Credentials are stored privately. If a later session loses access,
+the agent checks saved credentials and helps you recover your account by email.
 
-## Что находится в репозитории
+## Repository map
 
 ```text
-SKILL.md                    Инструкция для агента: установка, вход, прогнозы
-README.md                   Эта страница для человека
-references/COUPON_TYPES.md   Справочник форматов прогнозов
-src/asp/cli.py              Команды asp
-src/asp/api/                Обращения к сайту и сохранение входа
-pyproject.toml              Установка CLI и его зависимости
+SKILL.md                    Agent instructions, commands and JSON examples
+README.md                   This introduction
+references/COUPON_TYPES.md   How to build predictions for each format
+src/asp/cli.py              The asp commands
+src/asp/api/                Website requests and saved login state
+pyproject.toml              Package installation and dependencies
 ```
 
-## Запуск вручную
+## Run it yourself
 
-Из скачанной папки репозитория, если установлен `uv`:
+From a downloaded copy of this repository, with `uv` installed:
 
 ```bash
 uv run --python 3.11 asp auth-status
 uv run --python 3.11 asp coupons
 ```
 
-Первый запуск установит Python и зависимости, если их нет. Другой способ установки
-и список команд описаны в [SKILL.md](SKILL.md).
+The first run installs the required Python and dependencies if needed.
+See [SKILL.md](SKILL.md) for other installation options, commands and example
+responses. See [prediction formats](references/COUPON_TYPES.md) for how to turn
+a selected outcome, exact score or finishing order into a CLI submission.

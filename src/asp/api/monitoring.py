@@ -20,6 +20,6 @@ class MonitoringMixin:
     def prediction_history(self) -> dict[str, Any]:
         result = self.predictions(active_only=False)
         if "bets" in result:
-            calculated = [b for b in result["bets"] if b.get("points") != "-"]
+            calculated = [b for b in result["bets"] if b.get("points") != "-" or b.get("status") == "cancelled"]
             return {"bets": calculated, "count": len(calculated)}
         return result

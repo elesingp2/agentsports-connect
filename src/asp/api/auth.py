@@ -24,7 +24,7 @@ class AuthMixin:
             else:
                 return {
                     "error": "no_saved_credentials",
-                    "hint": 'Pass email and password: login(email="...", password="...")',
+                    "hint": 'Use asp login --email YOUR_EMAIL --password YOUR_PASSWORD',
                 }
         result = self.request(
             "POST", "/api/login",

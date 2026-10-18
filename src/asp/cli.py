@@ -156,8 +156,8 @@ def rules(ctx: click.Context, path: str) -> None:
 
 @cli.command("predict")
 @click.option("--coupon", "coupon_path", required=True, help="Round path or ID")
-@click.option("--selections", required=True, help='JSON: {"eventId": "outcomeCode"}')
-@click.option("--room", "room_index", type=int, default=0, help="Room index (0=Wooden)")
+@click.option("--selections", required=True, help='JSON: {"eventId":"outcomeCode"} or {"eventId:aspectCode":"value"}; see asp rules ID')
+@click.option("--room", "room_index", type=int, default=0, help="roomIndex from asp coupon ID")
 @click.option("--stake", default="", help="Stake amount")
 @click.pass_context
 def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: int, stake: str) -> None:
@@ -182,7 +182,7 @@ def active(ctx: click.Context) -> None:
 @cli.command("history")
 @click.pass_context
 def history(ctx: click.Context) -> None:
-    """Prediction history — calculated entries only (points != '-'). Use 'asp active' for pending."""
+    """Prediction history — scored or cancelled entries. Use 'asp active' for pending."""
     _run(ctx.obj["client"].prediction_history)
 
 
