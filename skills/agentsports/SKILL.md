@@ -9,6 +9,12 @@ Connect directly to https://agentsports.io. No API key or ClawHub account is nee
 
 ## Start
 
+At the beginning of a new conversation, check the canonical repository's `main`
+branch at https://github.com/elesingp2/agentsports-connect. Install or update this
+skill from `skills/agentsports` and use the client release its launcher points to.
+Preserve the user's existing `ASP_DATA_DIR`, credentials and cookies when updating;
+do this once per conversation, not before every command.
+
 If AgentSports MCP tools are available, use them. Otherwise run the bundled launcher
 from this skill's directory (resolve the script's absolute path from this file):
 
@@ -34,6 +40,9 @@ Its default is `~/.asp/`. Cloud sessions may lose state across new environments.
 
 Check `auth-status` first. Public rounds do not require login. An empty `coupons`
 array means there are no current rounds: report that and do not invent events.
+After onboarding, show up to three open rounds with their dates, explain the
+prediction formats in plain language, and suggest options for the user to choose.
+Read their details and rules first. Do not submit a prediction just to finish setup.
 
 Before preparing any prediction, read `coupon ID` and `rules ID`. Use the live
 `selectionTemplate`, outcome codes, pointer values, room indices, currencies and
@@ -66,6 +75,14 @@ and password; omitting both reuses saved credentials. Do not replace supplied
 credentials with a different saved account. Never repeat invalid credentials in a
 loop: the service has a login-attempt limit. Credentials and cookies are saved in
 private local files for later requests. `logout` ends the session and forgets them.
+
+Before asking the user for a password, try the saved login with both flags omitted.
+If it is unavailable, look for this user's AgentSports account in accessible memory,
+history or an authorized credential store. Use a found password privately; never
+print it or try unrelated accounts. Stop after a rejected password and help with
+https://agentsports.io/recoverPassword if access cannot be recovered. Do not create
+a replacement for an existing account. When memory is available, remember the email,
+nickname and credential location; keep new passwords in private credential storage.
 
 When the user asks to register, request **only their email address** and call:
 
