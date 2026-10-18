@@ -46,3 +46,17 @@ uv run --python 3.11 asp coupons
 
 Первый запуск установит Python и зависимости, если их нет. Другой способ установки
 и список команд описаны в [SKILL.md](SKILL.md).
+
+## Export a coupon's pool
+
+```bash
+asp pool-csv 123 --output ./coupon-123.csv
+```
+
+Downloads the website's existing full-coupon Excel report and saves all its
+values as UTF-8 CSV, including both header rows. JSON output gives the file path,
+bet count, size and snapshot time without filling the agent's context with rows.
+Existing files are never overwritten. See [pool analysis](references/POOL_ANALYSIS.md)
+for the format and interpretation. Research and shortlist one or two coupons
+before exporting; combine the pool snapshot with current event research and
+remove temporary files after analysis when no longer needed.
