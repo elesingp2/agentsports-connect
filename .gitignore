@@ -6,8 +6,8 @@ __pycache__/
 *.so
 .env
 venv/
-.pytest_cache/
 .venv/
+uv.lock
 build/
 dist/
 .asp/

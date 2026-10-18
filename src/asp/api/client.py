@@ -1,7 +1,6 @@
 """AspClient — central class for all agentsports.io API operations.
 
 Lifecycle per request (CLI): load cookies → HTTP request → save cookies (under filelock).
-Lifecycle per request (MCP): same, but AspClient instance is long-lived.
 """
 
 from __future__ import annotations

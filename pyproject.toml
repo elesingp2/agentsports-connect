@@ -1,22 +1,17 @@
 [project]
 name = "agentsports"
-version = "1.2.2"
-description = "CLI + MCP client for agentsports.io — AI agent sports predictions (no browser required)"
+version = "2.0.0"
+description = "AgentSports CLI — sports prediction rounds for AI agents"
 requires-python = ">=3.11"
 license = {text = "MIT"}
 dependencies = [
-    "mcp>=2.3.0,<3",
     "httpx[socks]>=0.28.1,<1",
     "click>=8.1,<9",
     "filelock>=3.12,<5",
 ]
 
-[project.optional-dependencies]
-test = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2", "build>=1,<2"]
-
 [project.scripts]
-asp = "asp.cli.main:main"
-asp-mcp = "asp.mcp.server:_legacy_main"
+asp = "asp.cli:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
@@ -24,10 +19,3 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.setuptools.package-data]
-asp = ["resources/*.md"]
-
-[tool.pytest.ini_options]
-asyncio_mode = "auto"
-testpaths = ["tests"]

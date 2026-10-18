@@ -230,24 +230,6 @@ def daily_claim(ctx: click.Context) -> None:
     _run(ctx.obj["client"].daily_claim)
 
 
-# ── MCP serve ─────────────────────────────────────────────────────────────
-
-@cli.command("mcp-serve")
-@click.option("--transport", default="stdio", type=click.Choice(["stdio", "streamable-http"]))
-@click.option("--port", default=8000, type=int, help="HTTP port (streamable-http only)")
-@click.option("--host", default="127.0.0.1", help="HTTP host (streamable-http only)")
-@click.option("--public-read-only", is_flag=True, help="Expose only anonymous round/status tools")
-@click.pass_context
-def mcp_serve(ctx: click.Context, transport: str, port: int, host: str, public_read_only: bool) -> None:
-    """Start MCP server (stdio or HTTP)."""
-    from asp.mcp.server import run
-    try:
-        run(transport=transport, host=host, port=port, client=ctx.obj["client"], public_read_only=public_read_only)
-    except ValueError as exc:
-        click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
-        sys.exit(EXIT_BAD_ARGS)
-
-
 def main() -> None:
     cli(auto_envvar_prefix="ASP")
 
