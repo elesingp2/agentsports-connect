@@ -20,6 +20,7 @@ from .auth import AuthMixin
 from .predictions import PredictionMixin
 from .account import AccountMixin
 from .monitoring import MonitoringMixin
+from .exports import ExportMixin
 from .state import StateManager
 
 log = logging.getLogger(__name__)
@@ -28,7 +29,7 @@ DEFAULT_BASE_URL = "https://agentsports.io"
 _TIMEOUT = httpx.Timeout(60.0, connect=15.0)
 
 
-class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin):
+class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin, ExportMixin):
     """Stateful HTTP client with disk-persisted session and file locking.
 
     Each public method performs: lock → load → HTTP request → save → unlock.

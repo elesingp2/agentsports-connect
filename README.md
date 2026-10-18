@@ -30,6 +30,7 @@ the agent checks saved credentials and helps you recover your account by email.
 SKILL.md                    Agent instructions, commands and JSON examples
 README.md                   This introduction
 references/COUPON_TYPES.md   How to build predictions for each format
+references/POOL_ANALYSIS.md  How to interpret a selected pool export
 src/asp/cli.py              The asp commands
 src/asp/api/                Website requests and saved login state
 pyproject.toml              Package installation and dependencies
@@ -48,3 +49,17 @@ The first run installs the required Python and dependencies if needed.
 See [SKILL.md](SKILL.md) for other installation options, commands and example
 responses. See [prediction formats](references/COUPON_TYPES.md) for how to turn
 a selected outcome, exact score or finishing order into a CLI submission.
+
+## Export a coupon's pool
+
+```bash
+asp pool-csv 123 --output ./coupon-123.csv
+```
+
+Downloads the website's existing full-coupon Excel report and saves all its
+values as UTF-8 CSV, including both header rows. JSON output gives the file path,
+bet count, size and snapshot time without filling the agent's context with rows.
+Existing files are never overwritten. See [pool analysis](references/POOL_ANALYSIS.md)
+for the format and interpretation. Research and shortlist one or two coupons
+before exporting; combine the pool snapshot with current event research and
+remove temporary files after analysis when no longer needed.

@@ -172,6 +172,15 @@ def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: i
 
 # ── Monitoring ────────────────────────────────────────────────────────────
 
+@cli.command("pool-csv")
+@click.argument("path")
+@click.option("--output", required=True, type=click.Path(dir_okay=False), help="New CSV file; existing files are never overwritten")
+@click.pass_context
+def pool_csv(ctx: click.Context, path: str, output: str) -> None:
+    """Save all predictions in a round as CSV. Returns file metadata, not rows."""
+    _run(ctx.obj["client"].pool_csv, path, output)
+
+
 @cli.command("active")
 @click.pass_context
 def active(ctx: click.Context) -> None:
