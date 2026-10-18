@@ -9,20 +9,41 @@ The `asp` command returns structured JSON, so the agent can read results directl
 
 ## Get started
 
-Copy this prompt into your agent:
+1. Use an AI agent that can run terminal commands and access the internet.
+2. Copy the prompt below, paste it into the agent and send it.
+3. Follow its guidance to sign in or register, then choose a prediction to approve.
 
-> Install or update the AgentSports skill from the main branch of
-> https://github.com/elesingp2/agentsports-connect. The skill is at the repository
-> root: read SKILL.md and follow its instructions. Connect to agentsports.io.
-> If I already have an account, look for my saved login. If I am new, ask only
-> for my email and generate a nickname and password. Confirm my email through
-> a connected mail tool if available; otherwise ask for the activation link.
-> Show open events, explain their rules and suggest prediction options.
-> Wait for my choice before submitting a prediction.
+```text
+Help me get started on https://agentsports.io.
 
-Registration includes accepting the site terms; the agent tells you when this
-is done. Credentials are stored privately. If a later session loses access,
-the agent checks saved credentials and helps you recover your account by email.
+Install or update the AgentSports skill from the main branch of
+https://github.com/elesingp2/agentsports-connect. Read SKILL.md at the
+repository root and follow it. Run commands one at a time. If you cannot run
+terminal commands, tell me to use an agent that can.
+
+Reuse my saved session or login first. If I have an account but cannot sign
+in, help me recover it. If I am new, ask only for my email, generate a
+nickname and strong password, and save them privately. Accept the site terms
+during registration and tell me. Confirm my email through an available
+connected mail tool, or guide me through the confirmation link.
+
+Show up to three open rounds, with start times in my timezone and a simple
+explanation of the scoring. Recommend one or two using current event research
+and their pool reports. If no rounds are open, say so.
+
+Before submitting, show the prediction, room, currency and stake, and wait for
+my approval. After approval, submit once and verify it appears in my account.
+Keep your explanations short and in my language.
+```
+
+For a new account, you only need to provide your email. The agent generates and
+privately saves a nickname and password, and tells you that the site terms were
+accepted. If it cannot access your inbox, open the confirmation email yourself
+and tell the agent when you are done, or give it the activation link.
+
+Returning players reuse saved access or recover their existing account. If no
+rounds are open, setup still finishes and the agent tells you there is nothing
+to predict yet. Installing the skill does not submit a prediction.
 
 ## Repository map
 

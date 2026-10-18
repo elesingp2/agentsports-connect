@@ -64,6 +64,8 @@ rules; use each response to choose the next action.
    `asp register --email user@example.com`. The CLI generates nickname/password,
    accepts site terms and privately saves the credentials. Report the returned
    nickname and accepted terms. Do not request additional profile details.
+   If registration says the email is already registered, recover that account;
+   do not retry with another nickname or create a second account.
 4. With authorized mailbox access, find the recent AgentSports registration email
    for that address and run `asp confirm URL` with its activation link. Otherwise
    request the link or ask the user to open the email. Only use an `/emailVerify/`
@@ -72,6 +74,13 @@ rules; use each response to choose the next action.
 5. Show up to three currently open rounds with dates and plain-language rules.
    Suggest options and let the user choose. An empty `coupons` array means there
    are no current rounds. Setup alone does not authorize submitting predictions.
+
+After setup, briefly state whether installation and sign-in succeeded,
+then show the available rounds or the single next step the user needs to take.
+Use the user's language and timezone; if the timezone is unknown, label times
+explicitly. When approval is needed, show the proposed prediction, room, currency
+and stake together so the user can make one clear choice. After submitting, match
+the returned bet ID in `active` or `history` before reporting completion.
 
 Credentials and cookies default to the private `~/.asp/` directory. Use
 `ASP_DATA_DIR` for persistent private storage when the environment provides it.
