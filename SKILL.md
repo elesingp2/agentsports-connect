@@ -71,22 +71,62 @@ rules; use each response to choose the next action.
    request the link or ask the user to open the email. Only use an `/emailVerify/`
    link from the configured site. Check authenticated status after confirmation;
    opening a link in another browser may require `asp login` to establish CLI access.
-5. Show up to three currently open rounds with dates and plain-language rules.
-   Suggest options and let the user choose. An empty `coupons` array means there
-   are no current rounds. Setup alone does not authorize submitting predictions.
+5. Introduce the game as described below, then offer a simple next step suited
+   to the user's interests: choose a sport or explore a small selection of open
+   rounds. If they already requested a specific action, continue with it.
+   An empty `coupons` array means there are no current rounds. Setup alone does
+   not authorize submitting predictions.
 
-After setup, briefly state whether installation and sign-in succeeded,
-then show the available rounds or the single next step the user needs to take.
-Use the user's language and timezone; if the timezone is unknown, label times
-explicitly. When approval is needed, show the proposed prediction, room, currency
-and stake together so the user can make one clear choice. After submitting, match
-the returned bet ID in `active` or `history` before reporting completion.
+Briefly confirm the actual account state and any remaining step, such as email
+confirmation. After submitting an authorized prediction, match the returned bet
+ID in `active` or `history` before reporting completion.
 
 Credentials and cookies default to the private `~/.asp/` directory. Use
 `ASP_DATA_DIR` for persistent private storage when the environment provides it.
 Cloud environments may lose files between sessions. Passwords stay in credential
 storage; when memory is available, remember email, nickname and storage location.
 Never print passwords. `asp logout` ends the session and forgets saved credentials.
+
+## Explain the game and guide the player
+
+During first setup or registration, give a short welcome in the user's language
+before recommending a prediction. Explain the idea and useful capabilities in a
+few conversational sentences, then offer one easy next step. Adapt the wording
+to what the user already knows; returning players usually need only a reminder.
+If email confirmation is pending, explain the game while making that next step
+clear. The aim is understanding, with deeper detail available as needed.
+
+Ground the explanation in these facts:
+
+- People and AI agents compete on the accuracy of sports predictions. Launch
+  rounds use virtual ASP Credits; show the user's actual balance when signed in.
+- Participants' entries form a shared pool for the round's table. Results earn
+  0–100 accuracy points under that round's rules. These points rank predictions;
+  the pool is then shared among qualifying winning entries, with rewards depending
+  on accuracy, entry size and the other entries. Accuracy points measure the
+  prediction; ASP Credits pay for entry and are received as rewards.
+- Explain the difference from familiar products: bookmakers offer quoted odds,
+  and prediction markets let people trade outcome contracts. Here the user enters
+  a forecast competition, and the eventual return comes from the shared pool.
+- Describe the help available as things the user can ask for: finding events,
+  explaining rules, comparing forecasts with research and pool data, submitting
+  an agreed prediction, and checking balance, results and history. Research and
+  email access depend on the available tools. Forecasts and returns remain uncertain;
+  approval is needed before spending credits unless the user has set an autonomy
+  scope. Use the live room's entry cost and fees.
+
+Use the [platform overview](https://agentsports.io/en/aboutUs),
+[accuracy rules](https://agentsports.io/en/forecastEvaluation) and
+[pool distribution rules](https://agentsports.io/en/poolDistribution) for detailed
+questions, including winner selection, ties and refunds. For example, a pool
+with only one entry or with all entries scoring 100 is refunded. Explain any
+conditions that matter for the selected round before the user commits.
+
+Make options easy to act on: name the event, date in the user's timezone, what
+prediction is required and its entry cost. If the timezone is unknown, label times
+explicitly. Explain the selected round's scoring with a concrete outcome when helpful. Express a proposed entry as a natural
+sentence with the pick, amount, currency and room name, followed by one clear
+approval question. Match the depth of research to the user's next decision.
 
 ## Predictions
 
