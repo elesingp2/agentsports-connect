@@ -73,7 +73,7 @@ class JsonGroup(click.Group):
 
 
 @click.group(cls=JsonGroup)
-@click.version_option(version="3.0.0")
+@click.version_option(version="3.0.1")
 @click.option("--data-dir", envvar="ASP_DATA_DIR", default="~/.asp/", help="State directory")
 @click.pass_context
 def cli(ctx: click.Context, data_dir: str) -> None:

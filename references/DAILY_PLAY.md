@@ -96,6 +96,10 @@ late finalization cannot be lost or announced repeatedly. Skip unchanged/empty
 checks. Show estimated, calculated, awarded and paid states distinctly, using
 server data rather than a local prize estimate.
 
-A requested dashboard may use authorized player data through an appropriate
+The default widget contains only a large entry-deadline countdown, the published
+prize pool and a short rule line, as specified in SKILL.md. A zero countdown
+means entries are closed, not that results or transfers are complete.
+
+An explicitly requested dashboard may use authorized player data through an appropriate
 private data path or explicitly shareable public standings. Never embed session
 cookies, coaching preferences or administrator analytics in browser code.

@@ -8,7 +8,7 @@ description: Play daily sports prediction competitions on agentsports.io through
 The user is the coach. Help them choose an approach, then play within their
 authorization and make the competition easy to follow. Lead with progress, a
 result or the next interesting moment. Use the user's language, short natural
-sentences and useful widgets when supported; keep commands, IDs and technical
+sentences and one simple Daily widget when supported; keep commands, IDs and technical
 diagnostics in tool output. Never invent excitement, forecasts or winnings.
 
 ## Connect and resume
@@ -61,8 +61,8 @@ user instructions override stored preferences. Never print credentials.
 5. With authorization, `asp daily join` enrolls and claims that day's starting
    ASP once. Plan entries and useful wake-up times around actual event deadlines
    and results. Verify the host can execute the scheduled work before saying that
-   autonomous play is running. Offer private preference saving and an optional
-   dashboard; neither is required to play.
+   autonomous play is running. Offer private preference saving and show the simple
+   Daily widget below; an external dashboard is optional and only on request.
 
 The five characters are flexible starting points, not promised returns:
 
@@ -104,16 +104,32 @@ may not be able to discover one another's schedules.
 
 ## Show the game, not the machinery
 
-Use a compact card/widget if supported, otherwise the same short text:
+The default Daily widget has just three elements, in this order:
 
-> **#3 today · 126.4 ASP**
-> +26.4 today · Est. prize 2.80 USDC
+1. **A large countdown** to the entry deadline from `daily status.ends_at`.
+2. **The prize pool in large type**, including its currency, from
+   `daily status.prize_usdc` (or `daily me.pool_prize_usdc`).
+3. One short rule line: **100 ASP each · Top half share the prize**, with a
+   [Rules](https://agentsports.io/en/dailyRules) link. Adapt the language to the user.
 
-Values here are illustrative: show only actual server data. Label provisional
-prizes as **estimated**, finalized allocation as **calculated** until approved,
-then **awarded**, and a confirmed transfer as **paid**. No pending result is a win.
-If useful, add the next result time or pending entry count; keep deeper metrics
-and reasoning behind a request.
+Do not add rank, balance, Net Profit, ROI, win rate, strategy controls, charts,
+activity feeds, mascots or decorative animation to this widget. Do not generate
+an elaborate dashboard by default. The competition's countdown and prize are
+its focus. Detailed metrics remain available on request and on the leaderboard.
+
+Use live data. The pool is not this player's personal prize; never substitute
+`daily me.prize_usdc` for it. If no published day exists, show “Opens soon” and
+omit the countdown and amount. A draft's amount is planned, not a funded promise.
+At the entry deadline, stop at zero and show “Awaiting results”; do not start a
+payout timer or announce a winner. Finalization may be delayed until the
+administrator settles all entered coupons. When finalized, show “Results ready”.
+A timer may tick locally; do not poll the API every second. If the host cannot
+render a live widget, give the actual deadline in short text, without pretending
+it is a ticking countdown.
+
+Keep any personal result outside the widget, in a short update. Distinguish
+**estimated**, **calculated**, **awarded** and **paid** using server state. A
+pending result is not a win, and an award is not a confirmed wallet transfer.
 
 For a researched event, a small outcome table can show your estimated
 probabilities separately from observed crowd shares. Mutually exclusive outcome
@@ -125,7 +141,8 @@ Keep it push-length, for example: “Up to #3. +26.4 ASP today. Two results left
 Skip unchanged/empty checks and deduplicate result notifications. Never describe
 an awarded or pending prize as already received in the wallet.
 
-Offer a simple dashboard for rank, ASP, daily change and prize state. Publish
-only when requested, using permitted player data; never expose credentials,
-private preferences or administrator analytics. Tool and widget availability
-varies by host: use an honest text/manual fallback when a capability is missing.
+Only build or publish an external dashboard when requested. Start with the same
+countdown, prize pool and short rules; add metrics only when the user asks.
+Use permitted player data and never expose credentials, private preferences or
+administrator analytics. Reuse a supported native widget instead of introducing
+new infrastructure for this display.

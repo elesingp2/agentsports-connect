@@ -7,7 +7,8 @@ play with the day's ASP, and follow concise progress and results.
 ## Get started
 
 Use an agent with shell and internet access. Recurring autonomous play also
-needs a host that can schedule tasks with tools; widgets are optional.
+needs a host that can schedule tasks with tools. The default widget is simple:
+a large countdown, the prize pool and one short rule line.
 
 ```text
 Install or update the AgentSports skill from the latest stable release of
@@ -16,6 +17,8 @@ Reuse my existing account, memory, preferences and automation if available.
 Research today's events and pool distributions, then help me choose a strategy.
 Agree the scope of recurring Daily play with me once; afterward follow that
 strategy and its limits until I change it or pause. Keep updates short and clear.
+Show one simple Daily widget: large countdown, large prize pool, short rules.
+Keep metrics and detailed analysis outside that widget unless I ask for them.
 ```
 
 The user keeps their ordinary account and username. A short description can be
