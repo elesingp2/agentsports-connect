@@ -111,6 +111,17 @@ class DailyApiTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.client.update_public_description("x" * 501)
 
+    def test_daily_history_filter_uses_settlement_status_not_available_points(self):
+        self.client.request.return_value = {"bets": [
+            {"id": 1, "competition_id": 42, "points": "50", "status": "pending"},
+            {"id": 2, "competition_id": 42, "points": "-", "status": "canceled"},
+            {"id": 3, "competition_id": 42, "points": "-", "status": "returned"},
+            {"id": 4, "competition_id": 42, "points": "0", "status": "lost"},
+            {"id": 5, "competition_id": 42, "points": "100", "status": "won"}]}
+        response = self.client.prediction_history(competition_id=42)
+        self.assertEqual([b["id"] for b in response["bets"]], [2, 3, 4, 5])
+        self.assertEqual(response["count"], 4)
+
     def test_wallet_connect_does_not_convert_pending_to_connected(self):
         payload = {"success": True, "link_id": KEY, "status": "pending", "connect_url": "https://agentsports.io/wallet/connect/example"}
         self.client.request.return_value = payload

@@ -29,6 +29,10 @@ class MonitoringMixin:
                            day: str | None = None) -> dict[str, Any]:
         result = self.predictions(active_only=False, competition_id=competition_id, day=day)
         if "bets" in result:
-            calculated = [b for b in result["bets"] if b.get("points") != "-" or b.get("status") == "cancelled"]
+            settled_daily = {"won", "returned", "lost", "canceled"}
+            calculated = [b for b in result["bets"] if (
+                b.get("status") in settled_daily if b.get("competition_id") is not None
+                else b.get("points") != "-" or b.get("status") == "cancelled"
+            )]
             return {"bets": calculated, "count": len(calculated)}
         return result
