@@ -7,6 +7,8 @@ import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
+from .validation import positive_id, request_key
+
 
 class PredictionMixin:
     """Prediction methods mixed into AspClient."""
@@ -28,7 +30,11 @@ class PredictionMixin:
         selections: dict[str, str] | str,
         room_index: int = 0,
         stake: str | int | float = "",
+        competition_id: str | int | None = None,
+        request_id: str | None = None,
     ) -> dict[str, Any]:
+        idempotency_key = request_key(request_id)
+        competition = positive_id(competition_id, "competition_id") if competition_id is not None else None
         if isinstance(room_index, bool) or not isinstance(room_index, int) or room_index < 0:
             raise ValueError("room_index must be a nonnegative integer")
         stake_value = "" if stake in ("", None) else str(stake)
@@ -67,10 +73,13 @@ class PredictionMixin:
                 raise ValueError("Cannot verify the room's minimum stake") from None
             if not minimum.is_finite() or minimum > self._max_stake:
                 raise ValueError("Room minimum stake exceeds ASP_MAX_STAKE")
-        body: dict[str, Any] = {"selections": sel, "roomIndex": room_index}
+        body: dict[str, Any] = {"selections": sel, "roomIndex": room_index, "request_id": idempotency_key}
+        if competition is not None:
+            body["competition_id"] = competition
         if stake_value:
             body["stake"] = stake_value
-        return self.request("POST", f"/api/coupons/{cid}/bet", json=body)
+        result = self.request("POST", f"/api/coupons/{cid}/bet", json=body)
+        return {**result, "request_id": idempotency_key}
 
 
 def _coupon_id(path_or_id: str) -> int:

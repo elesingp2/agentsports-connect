@@ -13,6 +13,8 @@ from typing import Any
 import filelock
 import httpx
 
+from .validation import positive_id
+
 log = logging.getLogger(__name__)
 
 DEFAULT_DATA_DIR = "~/.asp/"
@@ -157,3 +159,33 @@ class StateManager:
             os.replace(name, path)
         finally:
             Path(name).unlink(missing_ok=True)
+
+    def _preferences_path(self, account_id: int, create: bool = False) -> Path:
+        account_id = positive_id(account_id, "account id")
+        directory = self.dir / "preferences"
+        if create:
+            directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+        if directory.exists():
+            directory.chmod(0o700)
+        return directory / f"{account_id}.json"
+
+    def load_preferences(self, account_id: int) -> dict[str, Any] | None:
+        """Caller holds the state lock; corrupt preferences must never look like a fresh setup."""
+        path = self._preferences_path(account_id)
+        if not path.exists():
+            return None
+        path.chmod(0o600)
+        try:
+            document = json.loads(path.read_text(encoding="utf-8"))
+        except (ValueError, OSError):
+            raise ValueError("Saved preferences are unreadable; recover them before resuming autonomy") from None
+        if (not isinstance(document, dict) or document.get("schema_version") != 1
+            or document.get("account_id") != account_id or not isinstance(document.get("preferences"), dict)):
+            raise ValueError("Saved preferences do not match this account or supported schema")
+        return document
+
+    def save_preferences(self, account_id: int, document: dict[str, Any]) -> None:
+        self._write_json(self._preferences_path(account_id, create=True), document)
+
+    def clear_preferences(self, account_id: int) -> None:
+        self._preferences_path(account_id).unlink(missing_ok=True)

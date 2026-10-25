@@ -19,6 +19,7 @@ import filelock
 import httpx
 
 from asp.api import AspClient
+from asp.api.validation import request_key
 
 EXIT_OK = 0
 EXIT_API_ERROR = 1
@@ -33,22 +34,25 @@ def _output(data: dict[str, Any]) -> None:
 
 def _run(fn, *args: Any, **kwargs: Any) -> None:
     """Execute an API call, handle errors, set exit code."""
+    # A caller can reuse this key after an ambiguous network failure instead of
+    # accidentally starting a second logical Daily action.
+    action = {"request_id": kwargs["request_id"]} if kwargs.get("request_id") else {}
     try:
         result = fn(*args, **kwargs)
     except filelock.Timeout:
-        click.echo(json.dumps({"error": "lock_timeout"}), err=True)
+        click.echo(json.dumps({"error": "lock_timeout", **action}), err=True)
         sys.exit(EXIT_LOCK_TIMEOUT)
     except httpx.TimeoutException:
-        click.echo(json.dumps({"error": "timeout"}), err=True)
+        click.echo(json.dumps({"error": "timeout", **action}), err=True)
         sys.exit(EXIT_NETWORK)
     except httpx.ConnectError:
-        click.echo(json.dumps({"error": "connection_failed"}), err=True)
+        click.echo(json.dumps({"error": "connection_failed", **action}), err=True)
         sys.exit(EXIT_NETWORK)
     except httpx.HTTPError as exc:
-        click.echo(json.dumps({"error": "http_error", "detail": str(exc)}), err=True)
+        click.echo(json.dumps({"error": "http_error", "detail": str(exc), **action}), err=True)
         sys.exit(EXIT_NETWORK)
     except ValueError as exc:
-        click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
+        click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc), **action}), err=True)
         sys.exit(EXIT_BAD_ARGS)
 
     _output(result)
@@ -69,6 +73,7 @@ class JsonGroup(click.Group):
 
 
 @click.group(cls=JsonGroup)
+@click.version_option(version="3.0.0")
 @click.option("--data-dir", envvar="ASP_DATA_DIR", default="~/.asp/", help="State directory")
 @click.pass_context
 def cli(ctx: click.Context, data_dir: str) -> None:
@@ -159,15 +164,19 @@ def rules(ctx: click.Context, path: str) -> None:
 @click.option("--selections", required=True, help='JSON: {"eventId":"outcomeCode"} or {"eventId:aspectCode":"value"}; see asp rules ID')
 @click.option("--room", "room_index", type=int, default=0, help="roomIndex from asp coupon ID")
 @click.option("--stake", default="", help="Stake amount")
+@click.option("--competition", "competition_id", type=click.IntRange(min=1), help="Daily competition ID")
+@click.option("--request-id", default=None, help="Reuse the same key when retrying one Daily entry")
 @click.pass_context
-def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: int, stake: str) -> None:
+def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: int, stake: str,
+            competition_id: int | None, request_id: str | None) -> None:
     """Submit a prediction."""
     try:
         json.loads(selections)
     except json.JSONDecodeError as exc:
         click.echo(json.dumps({"error": "invalid_selections_json", "detail": str(exc)}), err=True)
         sys.exit(EXIT_BAD_ARGS)
-    _run(ctx.obj["client"].predict, coupon_path, selections, room_index, stake)
+    _run(ctx.obj["client"].predict, coupon_path, selections, room_index, stake,
+         competition_id=competition_id, request_id=request_key(request_id))
 
 
 # ── Monitoring ────────────────────────────────────────────────────────────
@@ -182,17 +191,21 @@ def pool_csv(ctx: click.Context, path: str, output: str) -> None:
 
 
 @cli.command("active")
+@click.option("--competition", "competition_id", type=click.IntRange(min=1))
+@click.option("--day", help="Filter by UTC day: YYYY-MM-DD")
 @click.pass_context
-def active(ctx: click.Context) -> None:
+def active(ctx: click.Context, competition_id: int | None, day: str | None) -> None:
     """Active (pending) predictions."""
-    _run(ctx.obj["client"].active_predictions)
+    _run(ctx.obj["client"].active_predictions, competition_id=competition_id, day=day)
 
 
 @cli.command("history")
+@click.option("--competition", "competition_id", type=click.IntRange(min=1))
+@click.option("--day", help="Filter by UTC day: YYYY-MM-DD")
 @click.pass_context
-def history(ctx: click.Context) -> None:
+def history(ctx: click.Context, competition_id: int | None, day: str | None) -> None:
     """Prediction history — scored or cancelled entries. Use 'asp active' for pending."""
-    _run(ctx.obj["client"].prediction_history)
+    _run(ctx.obj["client"].prediction_history, competition_id=competition_id, day=day)
 
 
 # ── Account ───────────────────────────────────────────────────────────────
@@ -222,21 +235,127 @@ def social(ctx: click.Context) -> None:
 
 @cli.group("daily")
 def daily() -> None:
-    """Daily bonus commands."""
+    """Daily competitions, balances, history and rankings."""
 
 
 @daily.command("status")
+@click.option("--day", help="UTC day: YYYY-MM-DD; current day by default")
+@click.option("--me", is_flag=True, help="Read this account's day balance and entries")
 @click.pass_context
-def daily_status(ctx: click.Context) -> None:
-    """Check daily bonus availability."""
-    _run(ctx.obj["client"].daily_status)
+def daily_status(ctx: click.Context, day: str | None, me: bool) -> None:
+    """Check availability and real day state; this does not join."""
+    _run(ctx.obj["client"].daily_me if me else ctx.obj["client"].daily_status, day=day)
+
+
+@daily.command("me")
+@click.option("--day", help="UTC day: YYYY-MM-DD")
+@click.pass_context
+def daily_me(ctx: click.Context, day: str | None) -> None:
+    """Read this account's day balance, rank and entries."""
+    _run(ctx.obj["client"].daily_me, day=day)
+
+
+@daily.command("history")
+@click.option("--day", required=True, help="UTC day: YYYY-MM-DD")
+@click.pass_context
+def daily_history(ctx: click.Context, day: str) -> None:
+    """Read a day's full snapshot, including still-pending entries."""
+    _run(ctx.obj["client"].daily_history, day=day)
+
+
+@daily.command("join")
+@click.option("--day", help="UTC day: YYYY-MM-DD; current day by default")
+@click.option("--request-id", default=None, help="Reuse this key to retry the same join")
+@click.pass_context
+def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> None:
+    """Join and receive the day's starting ASP once, when authorized."""
+    _run(ctx.obj["client"].daily_join, day=day, request_id=request_key(request_id))
 
 
 @daily.command("claim")
+@click.option("--day", help="UTC day: YYYY-MM-DD")
+@click.option("--request-id", default=None)
 @click.pass_context
-def daily_claim(ctx: click.Context) -> None:
-    """Claim daily bonus."""
-    _run(ctx.obj["client"].daily_claim)
+def daily_claim(ctx: click.Context, day: str | None, request_id: str | None) -> None:
+    """Alias of Daily join; never issues an additional bonus."""
+    _run(ctx.obj["client"].daily_claim, day=day, request_id=request_key(request_id))
+
+
+@daily.command("leaderboard")
+@click.option("--day", help="UTC day: YYYY-MM-DD")
+@click.option("--scope", type=click.Choice(["daily", "30d"]), default="daily", show_default=True)
+@click.option("--page", type=click.IntRange(1, 100000), default=1, show_default=True)
+@click.pass_context
+def daily_leaderboard(ctx: click.Context, day: str | None, scope: str, page: int) -> None:
+    """Read public standings and user descriptions."""
+    _run(ctx.obj["client"].daily_leaderboard, day=day, scope=scope, page=page)
+
+
+@cli.group("profile")
+def profile() -> None:
+    """The ordinary user's public description; private coaching stays local."""
+
+
+@profile.command("description")
+@click.argument("text")
+@click.pass_context
+def profile_description(ctx: click.Context, text: str) -> None:
+    """Publish TEXT (up to 500 characters); pass empty text to clear."""
+    _run(ctx.obj["client"].update_public_description, text)
+
+
+@cli.group("wallet")
+def wallet() -> None:
+    """Human-signed payout-wallet connection; no transfers or private keys."""
+
+
+@wallet.command("config")
+@click.pass_context
+def wallet_config(ctx: click.Context) -> None:
+    """Read supported network and feature availability."""
+    _run(ctx.obj["client"].wallet_config)
+
+
+@wallet.command("connect")
+@click.pass_context
+def wallet_connect(ctx: click.Context) -> None:
+    """Request a site link for the user to sign in their own wallet."""
+    _run(ctx.obj["client"].wallet_connect)
+
+
+@wallet.command("status")
+@click.option("--link-id", help="Optional pending connection ID")
+@click.pass_context
+def wallet_status(ctx: click.Context, link_id: str | None) -> None:
+    """Check actual connection status; creating a link is not verification."""
+    _run(ctx.obj["client"].wallet_status, link_id=link_id)
+
+
+@cli.group("preferences")
+def preferences() -> None:
+    """Optional private coaching settings; these commands never change a host scheduler."""
+
+
+@preferences.command("show")
+@click.pass_context
+def preferences_show(ctx: click.Context) -> None:
+    """Read preferences only for the currently authenticated account."""
+    _run(ctx.obj["client"].preferences_show)
+
+
+@preferences.command("save")
+@click.option("--json", "json_text", required=True, help="JSON object to merge; null removes a field")
+@click.pass_context
+def preferences_save(ctx: click.Context, json_text: str) -> None:
+    """Save agreed private settings locally; never publishes a description."""
+    _run(ctx.obj["client"].preferences_save, json.loads(json_text))
+
+
+@preferences.command("clear")
+@click.pass_context
+def preferences_clear(ctx: click.Context) -> None:
+    """Remove this account's local preferences; does not stop existing schedules."""
+    _run(ctx.obj["client"].preferences_clear)
 
 
 def main() -> None:

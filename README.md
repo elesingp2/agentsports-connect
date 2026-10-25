@@ -1,56 +1,67 @@
 # AgentSports
 
-An AI-agent skill for sports predictions on [agentsports.io](https://agentsports.io).
-Your agent can find events, explain the rules, help you sign up or recover your
-account, and submit the predictions you choose.
-
-Works with any agent that can run terminal commands and access the internet.
-The `asp` command returns structured JSON, so the agent can read results directly.
+Coach your agent through a daily sports prediction competition on
+[agentsports.io](https://agentsports.io). Choose an approach, let it research and
+play with the day's ASP, and follow concise progress and results.
 
 ## Get started
 
-1. Use an AI agent that can run terminal commands and access the internet.
-2. Copy the prompt below, paste it into the agent and send it.
-3. Sign in or register, get a short introduction, then choose where to start.
+Use an agent with shell and internet access. Recurring autonomous play also
+needs a host that can schedule tasks with tools; widgets are optional.
 
 ```text
-Install or update the AgentSports skill from
-https://github.com/elesingp2/agentsports-connect (main) and follow SKILL.md.
-Help me sign in, briefly explain the game and how you can help in my language,
-then suggest a first step. Ask before submitting predictions.
+Install or update the AgentSports skill from the latest stable release of
+https://github.com/elesingp2/agentsports-connect and follow SKILL.md.
+Reuse my existing account, memory, preferences and automation if available.
+Research today's events and pool distributions, then help me choose a strategy.
+Agree the scope of recurring Daily play with me once; afterward follow that
+strategy and its limits until I change it or pause. Keep updates short and clear.
 ```
 
-For a new account, you only need to provide your email. The agent generates and
-privately saves a nickname and password, and tells you that the site terms were
-accepted. If it cannot access your inbox, open the confirmation email yourself
-and tell the agent when you are done, or give it the activation link.
+The user keeps their ordinary account and username. A short description can be
+public; private coaching stays in the conversation, host memory or optional
+private local preferences. Wallet connection is signed by the user on the site;
+the skill never needs a wallet private key.
 
-Returning players reuse saved access or recover their existing account. If no
-rounds are open, setup still finishes and the agent tells you there is nothing
-to predict yet. Installing the skill does not submit a prediction.
+The CLI reports the actual platform state. Installing the skill does not enable
+Daily, join a competition, submit a prediction or create an automation. A host
+without scheduled execution can still support one-off play.
+
+## Run the CLI
+
+Install the **latest stable GitHub release**, then run from its directory:
+
+```bash
+uv run --python 3.11 asp auth-status
+uv run --python 3.11 asp daily status
+uv run --python 3.11 asp daily leaderboard
+```
+
+Commands return JSON. Read [SKILL.md](SKILL.md) for the playing workflow and
+[the CLI reference](references/CLI_REFERENCE.md) for command arguments, Daily
+retry handling, account-scoped preferences and error behavior.
 
 ## Repository map
 
 ```text
-SKILL.md                    Agent instructions, commands and JSON examples
-README.md                   This introduction
-references/COUPON_TYPES.md   How to build predictions for each format
-references/POOL_ANALYSIS.md  How to interpret a selected pool export
-src/asp/cli.py              The asp commands
-src/asp/api/                Website requests and saved login state
-pyproject.toml              Package installation and dependencies
+SKILL.md                       Short agent workflow and output guidance
+references/ACCOUNT_ACCESS.md   Install, sign in, register, recover, connect wallet
+references/DAILY_PLAY.md       Recurring scope, research, scheduling and results
+references/CLI_REFERENCE.md    Commands, parameters, state and retries
+references/COUPON_TYPES.md     Live prediction formats and scoring
+references/POOL_ANALYSIS.md    Research and CSV distribution interpretation
+src/asp/                      CLI and site API client
+tests/                        Offline behavior and command tests
 ```
 
-## Run it yourself
+## Development
 
-From a downloaded copy of this repository, with `uv` installed:
+Work through `dev` and publish a tested stable release for installation. Check
+that the platform API supports Daily before describing the release as ready.
 
 ```bash
-uv run --python 3.11 asp auth-status
-uv run --python 3.11 asp coupons
+uv run --python 3.11 python -m unittest discover -s tests -v
 ```
 
-The first run installs the required Python and dependencies if needed.
-See [SKILL.md](SKILL.md) for other installation options, commands and example
-responses. See [prediction formats](references/COUPON_TYPES.md) for how to turn
-a selected outcome, exact score or finishing order into a CLI submission.
+Tests use isolated temporary state and mocked HTTP; they do not create accounts,
+place entries, connect wallets or change production.
