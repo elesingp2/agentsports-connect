@@ -18,8 +18,8 @@ import click
 import filelock
 import httpx
 
-from asp.api import AspClient
-from asp.api.validation import request_key
+from asp import api, exports, state
+from asp.state import request_key
 
 EXIT_OK = 0
 EXIT_API_ERROR = 1
@@ -62,24 +62,13 @@ def _run(fn, *args: Any, **kwargs: Any) -> None:
     sys.exit(EXIT_OK)
 
 
-class JsonGroup(click.Group):
-    def main(self, *args: Any, **kwargs: Any) -> Any:
-        kwargs["standalone_mode"] = False
-        try:
-            return super().main(*args, **kwargs)
-        except (click.UsageError, ValueError) as exc:
-            click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
-            sys.exit(EXIT_BAD_ARGS)
-
-
-@click.group(cls=JsonGroup)
+@click.group()
 @click.version_option(package_name="agentsports")
 @click.option("--data-dir", envvar="ASP_DATA_DIR", default="~/.asp/", help="State directory")
 @click.pass_context
 def cli(ctx: click.Context, data_dir: str) -> None:
     """agentsports CLI — sports predictions from the command line."""
-    ctx.ensure_object(dict)
-    ctx.obj["client"] = AspClient(data_dir=data_dir)
+    ctx.obj = state.create_session(data_dir=data_dir)
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────
@@ -88,7 +77,7 @@ def cli(ctx: click.Context, data_dir: str) -> None:
 @click.pass_context
 def auth_status(ctx: click.Context) -> None:
     """Check session and balances. Call first."""
-    _run(ctx.obj["client"].auth_status)
+    _run(api.request, ctx.obj, "GET", "/api/status")
 
 
 @cli.command("login")
@@ -97,14 +86,14 @@ def auth_status(ctx: click.Context) -> None:
 @click.pass_context
 def login(ctx: click.Context, email: str, password: str) -> None:
     """Log in. Omit both flags to reuse saved credentials."""
-    _run(ctx.obj["client"].login, email or None, password or None)
+    _run(api.login, ctx.obj, email or None, password or None)
 
 
 @cli.command("logout")
 @click.pass_context
 def logout(ctx: click.Context) -> None:
     """End session."""
-    _run(ctx.obj["client"].logout)
+    _run(api.logout, ctx.obj)
 
 
 @cli.command("register")
@@ -123,7 +112,7 @@ def logout(ctx: click.Context) -> None:
 @click.pass_context
 def register(ctx: click.Context, **kwargs: Any) -> None:
     """Create a new account; keep or confirm existing access instead of registering twice."""
-    _run(ctx.obj["client"].register, **kwargs)
+    _run(api.register, ctx.obj, **kwargs)
 
 
 @cli.command("credentials")
@@ -131,7 +120,7 @@ def register(ctx: click.Context, **kwargs: Any) -> None:
 @click.pass_context
 def credentials(ctx: click.Context, show_password: bool) -> None:
     """Read saved login details; the password is hidden by default."""
-    _run(ctx.obj["client"].credentials, show_password=show_password)
+    _run(api.credentials, ctx.obj, show_password=show_password)
 
 
 @cli.command("resend-confirmation")
@@ -140,7 +129,7 @@ def credentials(ctx: click.Context, show_password: bool) -> None:
 @click.pass_context
 def resend_confirmation(ctx: click.Context, email: str, password: str) -> None:
     """Resend activation with saved credentials; keep the same account and password."""
-    _run(ctx.obj["client"].resend_confirmation, email=email, password=password)
+    _run(api.resend_confirmation, ctx.obj, email=email, password=password)
 
 
 @cli.command("confirm")
@@ -148,7 +137,7 @@ def resend_confirmation(ctx: click.Context, email: str, password: str) -> None:
 @click.pass_context
 def confirm(ctx: click.Context, url: str) -> None:
     """Activate account using the email confirmation link."""
-    _run(ctx.obj["client"].confirm, url)
+    _run(api.confirm, ctx.obj, url)
 
 
 # ── Predictions ───────────────────────────────────────────────────────────
@@ -157,7 +146,7 @@ def confirm(ctx: click.Context, url: str) -> None:
 @click.pass_context
 def coupons(ctx: click.Context) -> None:
     """List available prediction rounds."""
-    _run(ctx.obj["client"].coupons)
+    _run(api.request, ctx.obj, "GET", "/api/coupons")
 
 
 @cli.command("coupon")
@@ -165,7 +154,7 @@ def coupons(ctx: click.Context) -> None:
 @click.pass_context
 def coupon(ctx: click.Context, path: str) -> None:
     """Get round details — events, outcomes, rooms, scoring rules. Accepts path or numeric ID."""
-    _run(ctx.obj["client"].coupon_details, path)
+    _run(api.request, ctx.obj, "GET", f"/api/coupons/{api._coupon_id(path)}")
 
 
 @cli.command("rules")
@@ -173,7 +162,7 @@ def coupon(ctx: click.Context, path: str) -> None:
 @click.pass_context
 def rules(ctx: click.Context, path: str) -> None:
     """Get scoring rules for a prediction round. Shows the accuracy scoring matrix."""
-    _run(ctx.obj["client"].coupon_rules, path)
+    _run(api.request, ctx.obj, "GET", f"/api/coupons/{api._coupon_id(path)}/rules")
 
 
 @cli.command("predict")
@@ -192,7 +181,7 @@ def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: i
     except json.JSONDecodeError as exc:
         click.echo(json.dumps({"error": "invalid_selections_json", "detail": str(exc)}), err=True)
         sys.exit(EXIT_BAD_ARGS)
-    _run(ctx.obj["client"].predict, coupon_path, selections, room_index, stake,
+    _run(api.predict, ctx.obj, coupon_path, selections, room_index, stake,
          competition_id=competition_id, request_id=request_key(request_id))
 
 
@@ -204,7 +193,7 @@ def predict(ctx: click.Context, coupon_path: str, selections: str, room_index: i
 @click.pass_context
 def pool_csv(ctx: click.Context, path: str, output: str) -> None:
     """Save all predictions in a round as CSV. Returns file metadata, not rows."""
-    _run(ctx.obj["client"].pool_csv, path, output)
+    _run(exports.pool_csv, ctx.obj, path, output)
 
 
 @cli.command("active")
@@ -213,7 +202,7 @@ def pool_csv(ctx: click.Context, path: str, output: str) -> None:
 @click.pass_context
 def active(ctx: click.Context, competition_id: int | None, day: str | None) -> None:
     """Active (pending) predictions."""
-    _run(ctx.obj["client"].active_predictions, competition_id=competition_id, day=day)
+    _run(api.predictions, ctx.obj, active_only=True, competition_id=competition_id, day=day)
 
 
 @cli.command("history")
@@ -222,7 +211,7 @@ def active(ctx: click.Context, competition_id: int | None, day: str | None) -> N
 @click.pass_context
 def history(ctx: click.Context, competition_id: int | None, day: str | None) -> None:
     """Prediction history — scored or cancelled entries. Use 'asp active' for pending."""
-    _run(ctx.obj["client"].prediction_history, competition_id=competition_id, day=day)
+    _run(api.prediction_history, ctx.obj, competition_id=competition_id, day=day)
 
 
 # ── Account ───────────────────────────────────────────────────────────────
@@ -231,21 +220,21 @@ def history(ctx: click.Context, competition_id: int | None, day: str | None) -> 
 @click.pass_context
 def account(ctx: click.Context) -> None:
     """Account details and balances."""
-    _run(ctx.obj["client"].account)
+    _run(api.request, ctx.obj, "GET", "/api/account")
 
 
 @cli.command("payments")
 @click.pass_context
 def payments(ctx: click.Context) -> None:
     """Deposit and withdrawal methods."""
-    _run(ctx.obj["client"].payment_methods)
+    _run(api.request, ctx.obj, "GET", "/api/payment-methods")
 
 
 @cli.command("social")
 @click.pass_context
 def social(ctx: click.Context) -> None:
     """Friends list and invite link."""
-    _run(ctx.obj["client"].social)
+    _run(api.request, ctx.obj, "GET", "/api/social")
 
 
 # ── Daily ─────────────────────────────────────────────────────────────────
@@ -261,7 +250,7 @@ def daily() -> None:
 @click.pass_context
 def daily_status(ctx: click.Context, day: str | None, me: bool) -> None:
     """Check availability and real day state; this does not join."""
-    _run(ctx.obj["client"].daily_me if me else ctx.obj["client"].daily_status, day=day)
+    _run(api.daily_me if me else api.daily_status, ctx.obj, day=day)
 
 
 @daily.command("me")
@@ -269,7 +258,7 @@ def daily_status(ctx: click.Context, day: str | None, me: bool) -> None:
 @click.pass_context
 def daily_me(ctx: click.Context, day: str | None) -> None:
     """Read this account's day balance, rank and entries."""
-    _run(ctx.obj["client"].daily_me, day=day)
+    _run(api.daily_me, ctx.obj, day=day)
 
 
 @daily.command("history")
@@ -277,7 +266,7 @@ def daily_me(ctx: click.Context, day: str | None) -> None:
 @click.pass_context
 def daily_history(ctx: click.Context, day: str) -> None:
     """Read a day's full snapshot, including still-pending entries."""
-    _run(ctx.obj["client"].daily_history, day=day)
+    _run(api.daily_me, ctx.obj, day=day)
 
 
 @daily.command("join")
@@ -286,7 +275,7 @@ def daily_history(ctx: click.Context, day: str) -> None:
 @click.pass_context
 def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> None:
     """Compatibility alias for the daily-bonus claim."""
-    _run(ctx.obj["client"].daily_join, day=day, request_id=request_key(request_id))
+    _run(api.daily_claim, ctx.obj, day=day, request_id=request_key(request_id))
 
 
 @daily.command("claim")
@@ -295,7 +284,7 @@ def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> N
 @click.pass_context
 def daily_claim(ctx: click.Context, day: str | None, request_id: str | None) -> None:
     """Claim the day's 100 ASP once, when authorized."""
-    _run(ctx.obj["client"].daily_claim, day=day, request_id=request_key(request_id))
+    _run(api.daily_claim, ctx.obj, day=day, request_id=request_key(request_id))
 
 
 @daily.command("leaderboard")
@@ -305,7 +294,7 @@ def daily_claim(ctx: click.Context, day: str | None, request_id: str | None) -> 
 @click.pass_context
 def daily_leaderboard(ctx: click.Context, day: str | None, scope: str, page: int) -> None:
     """Read public standings and user descriptions."""
-    _run(ctx.obj["client"].daily_leaderboard, day=day, scope=scope, page=page)
+    _run(api.daily_leaderboard, ctx.obj, day=day, scope=scope, page=page)
 
 
 @cli.group("profile")
@@ -318,7 +307,7 @@ def profile() -> None:
 @click.pass_context
 def profile_description(ctx: click.Context, text: str) -> None:
     """Publish TEXT (up to 500 characters); pass empty text to clear."""
-    _run(ctx.obj["client"].update_public_description, text)
+    _run(api.update_public_description, ctx.obj, text)
 
 
 @cli.group("wallet")
@@ -330,14 +319,14 @@ def wallet() -> None:
 @click.pass_context
 def wallet_config(ctx: click.Context) -> None:
     """Read supported network and feature availability."""
-    _run(ctx.obj["client"].wallet_config)
+    _run(api.request, ctx.obj, "GET", "/api/wallet/config")
 
 
 @wallet.command("connect")
 @click.pass_context
 def wallet_connect(ctx: click.Context) -> None:
     """Request a site link for the user to sign in their own wallet."""
-    _run(ctx.obj["client"].wallet_connect)
+    _run(api.request, ctx.obj, "POST", "/api/wallet/connect", json={})
 
 
 @wallet.command("status")
@@ -345,7 +334,7 @@ def wallet_connect(ctx: click.Context) -> None:
 @click.pass_context
 def wallet_status(ctx: click.Context, link_id: str | None) -> None:
     """Check actual connection status; creating a link is not verification."""
-    _run(ctx.obj["client"].wallet_status, link_id=link_id)
+    _run(api.wallet_status, ctx.obj, link_id=link_id)
 
 
 @cli.group("preferences")
@@ -357,26 +346,37 @@ def preferences() -> None:
 @click.pass_context
 def preferences_show(ctx: click.Context) -> None:
     """Read preferences only for the currently authenticated account."""
-    _run(ctx.obj["client"].preferences_show)
+    _run(api.preferences_show, ctx.obj)
 
 
 @preferences.command("save")
 @click.option("--json", "json_text", required=True, help="JSON object to merge; null removes a field")
 @click.pass_context
 def preferences_save(ctx: click.Context, json_text: str) -> None:
-    """Save agreed private settings locally; never publishes a description."""
-    _run(ctx.obj["client"].preferences_save, json.loads(json_text))
+    """Save agreed private settings locally; never publishes a description.
+
+    Fields: strategy, personality, coaching, language, timezone (text),
+    autonomy_enabled (boolean), limits (max_entry_asp, max_coupon_asp,
+    min_reserve_asp), schedules (list of host/id/status/next_run_at objects),
+    notification_cursors (UTC date to cursor text). Null removes a field.
+    Saving preferences does not start or stop a scheduler.
+    """
+    _run(api.preferences_save, ctx.obj, json.loads(json_text))
 
 
 @preferences.command("clear")
 @click.pass_context
 def preferences_clear(ctx: click.Context) -> None:
     """Remove this account's local preferences; does not stop existing schedules."""
-    _run(ctx.obj["client"].preferences_clear)
+    _run(api.preferences_clear, ctx.obj)
 
 
 def main() -> None:
-    cli(auto_envvar_prefix="ASP")
+    try:
+        cli(auto_envvar_prefix="ASP", standalone_mode=False)
+    except (click.UsageError, ValueError) as exc:
+        click.echo(json.dumps({"error": "invalid_argument", "detail": str(exc)}), err=True)
+        sys.exit(EXIT_BAD_ARGS)
 
 
 if __name__ == "__main__":

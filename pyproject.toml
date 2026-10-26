@@ -1,6 +1,6 @@
 [project]
 name = "agentsports"
-version = "3.1.1"
+version = "3.2.0"
 description = "AgentSports CLI — daily sports prediction competitions for autonomous agents"
 requires-python = ">=3.11"
 license = {text = "MIT"}

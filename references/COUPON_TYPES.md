@@ -162,3 +162,9 @@ On `invalid_selections`, reread the specific rules and correct the payload; do n
 blindly retry. On a timeout, inspect `active` and `history` before resubmitting,
 since a successful write may have lost its response. Never submit solely to test
 an installation; predictions require the user's authorization.
+
+## Read a pool CSV
+
+`asp pool-csv ID --output /absolute/path/to/pool.csv` exports the existing full-coupon report. Parse it as CSV: row 1 names events, row 2 labels aspects, and later rows contain entries. Carry merged event headings right across blank cells; identify repeated aspect labels by their event and column position. Preserve repeated rows and zeros.
+
+Rows are entries, not unique people. The report has no identities, per-row stakes, room IDs or payouts, so do not invent stake-weighted shares. Blank cells depend on the live format; timestamps retain the report's timezone. Empty or small pools support limited conclusions, and crowd popularity is not outcome probability. Multi-event forecasts use the coupon's scoring rules, not multiplied odds.
