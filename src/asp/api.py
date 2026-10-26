@@ -186,6 +186,9 @@ def _parse_response(resp: httpx.Response) -> dict[str, Any]:
     if not isinstance(body, dict):
         # Avoid reflecting HTML, cookies, confirmation tokens, or credentials in tool output.
         return {"error": "invalid_response", "status": resp.status_code}
+    # Transport already saved these privately; agents do not need them in output.
+    body.pop("sessionToken", None)
+    body.pop("csrf_token", None)
     if not resp.is_success:
         return {**body, "error": body.get("error", "http_error"), "status": resp.status_code}
     return body
