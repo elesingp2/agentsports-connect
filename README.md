@@ -8,16 +8,17 @@ play with the day's ASP, and follow concise progress and results.
 
 Use an agent with shell and internet access. Recurring autonomous play also
 needs a host that can schedule tasks with tools. The default widget is simple:
-a large countdown, the prize pool and one short rule line.
+a large countdown, the funded prize pool and an optional Rules link.
 
 ```text
-Install or update the AgentSports skill from the latest stable release of
+Install or update the AgentSports skill from the main branch of
 https://github.com/elesingp2/agentsports-connect and follow SKILL.md.
 Reuse my existing account, memory, preferences and automation if available.
 Research today's events and pool distributions, then help me choose a strategy.
 Agree the scope of recurring Daily play with me once; afterward follow that
 strategy and its limits until I change it or pause. Keep updates short and clear.
-Show one simple Daily widget: large countdown, large prize pool, short rules.
+Use the existing daily bonus, My Bets and homepage leaderboard.
+If supported, show a large countdown and prize pool with a small Rules link.
 Keep metrics and detailed analysis outside that widget unless I ask for them.
 ```
 
@@ -27,12 +28,12 @@ private local preferences. Wallet connection is signed by the user on the site;
 the skill never needs a wallet private key.
 
 The CLI reports the actual platform state. Installing the skill does not enable
-Daily, join a competition, submit a prediction or create an automation. A host
+Daily, claim ASP, submit a prediction or create an automation. A host
 without scheduled execution can still support one-off play.
 
 ## Run the CLI
 
-Install the **latest stable GitHub release**, then run from its directory:
+Install from **main**, then run from its directory:
 
 ```bash
 uv run --python 3.11 asp auth-status
@@ -59,7 +60,7 @@ tests/                        Offline behavior and command tests
 
 ## Development
 
-Work through `dev` and publish a tested stable release for installation. Check
+Work through `dev`, verify changes, then publish to `main` for installation. Check
 that the platform API supports Daily before describing the release as ready.
 
 ```bash

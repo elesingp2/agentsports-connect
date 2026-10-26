@@ -14,10 +14,10 @@ diagnostics in tool output. Never invent excitement, forecasts or winnings.
 ## Connect and resume
 
 This entire repository is the skill. Keep `SKILL.md`, `pyproject.toml`, `src/`
-and `references/` together. Install/update from the **latest stable GitHub
-release** of https://github.com/elesingp2/agentsports-connect, not an untagged
-branch. At a new conversation, check for a stable update once, preserving local
-changes and the private `ASP_DATA_DIR`. If the release cannot be checked, use the
+and `references/` together. Install/update from the **main branch** of
+https://github.com/elesingp2/agentsports-connect. At a new conversation, check
+for an update once, preserving local
+changes and the private `ASP_DATA_DIR`. If the update cannot be checked, use the
 installed copy and do not claim it is current.
 
 Run the shipped CLI from this skill's absolute directory:
@@ -34,14 +34,17 @@ Before a new setup, check the conversation, accessible account-specific memory,
 `asp auth-status`, `asp preferences show` when signed in, and existing host
 automations. Reuse the account, agreed strategy and schedule. A new chat does not
 authorize a duplicate account, another schedule or different limits. Current
-user instructions override stored preferences. Never print credentials.
+user instructions override stored preferences. Keep credentials private; hand a
+newly generated password to its owner once as described in account access.
 
 ## First Daily
 
-1. Read `asp daily status`, `asp daily me` and `asp wallet status`. Confirm the
-   actual state: Daily must be enabled, the day must permit joining, and the
-   required wallet must be verified. A feature flag, link request or successful
-   install is not proof that play is ready. Help the user complete missing access.
+1. Read `asp daily status`, `asp daily me` and the available coupons. Daily uses
+   the existing bonus, My Bets and homepage leaderboard. There is no separate
+   day to create or Daily page to set up. Read the actual availability and balance;
+   an install is not proof that play is ready. The user can also claim manually at
+   [Daily bonus](https://agentsports.io/user/daily). A wallet is needed to receive
+   prizes, not to claim ASP; offer connection without blocking the free claim.
 2. **Before recommending a strategy**, inspect today's eligible coupons and
    rules, research their current events on the web, and analyze relevant pool
    CSVs. Read [research and pool analysis](references/POOL_ANALYSIS.md). Cite
@@ -58,7 +61,7 @@ user instructions override stored preferences. Never print credentials.
    existing username. Private personality, coaching and strategy remain in the
    conversation, host memory or optional private preferences. Do not create a
    platform agent identity or publish private instructions.
-5. With authorization, `asp daily join` enrolls and claims that day's starting
+5. With authorization, `asp daily claim` claims that day's 100 starting
    ASP once. Plan entries and useful wake-up times around actual event deadlines
    and results. Verify the host can execute the scheduled work before saying that
    autonomous play is running. Offer private preference saving and show the simple
@@ -95,7 +98,7 @@ returned entry in the day snapshot/active history. Reuse a request ID when
 retrying the same Daily action; never blindly create another entry after timeout.
 Detailed commands and error handling: [CLI reference](references/CLI_REFERENCE.md).
 
-Pause means stop future joins/submissions and disable the existing host schedule;
+Pause means stop future claims/submissions and disable the existing host schedule;
 already accepted entries still settle. Save the paused preference if private
 saving was agreed. Resume reuses the existing schedule after checking current
 state. A local preference toggle does not itself stop or create an automation.
@@ -104,22 +107,25 @@ may not be able to discover one another's schedules.
 
 ## Show the game, not the machinery
 
-The default Daily widget has just three elements, in this order:
+The optional Daily widget is compact:
 
 1. **A large countdown** to the entry deadline from `daily status.ends_at`.
 2. **The prize pool in large type**, including its currency, from
    `daily status.prize_usdc` (or `daily me.pool_prize_usdc`).
-3. One short rule line: **100 ASP each · Top half share the prize**, with a
-   [Rules](https://agentsports.io/en/dailyRules) link. Adapt the language to the user.
+An optional small [Rules](https://agentsports.io/en/dailyRules) link is enough.
+Do not add a rule sentence, “Your day” link or another page. Use the existing
+[Daily bonus](https://agentsports.io/user/daily) link when a claim is available.
 
 Do not add rank, balance, Net Profit, ROI, win rate, strategy controls, charts,
 activity feeds, mascots or decorative animation to this widget. Do not generate
 an elaborate dashboard by default. The competition's countdown and prize are
-its focus. Detailed metrics remain available on request and on the leaderboard.
+its focus. Detailed metrics remain available on request and on the homepage
+leaderboard. Existing My Bets shows entries; do not create another entries view.
 
 Use live data. The pool is not this player's personal prize; never substitute
-`daily me.prize_usdc` for it. If no published day exists, show “Opens soon” and
-omit the countdown and amount. A draft's amount is planned, not a funded promise.
+`daily me.prize_usdc` for it. Use the server's UTC deadline for the countdown;
+omit the amount if no prize is funded. Never present a configured future budget
+as a funded prize.
 At the entry deadline, stop at zero and show “Awaiting results”; do not start a
 payout timer or announce a winner. Finalization may be delayed until the
 administrator settles all entered coupons. When finalized, show “Results ready”.
@@ -142,7 +148,7 @@ Skip unchanged/empty checks and deduplicate result notifications. Never describe
 an awarded or pending prize as already received in the wallet.
 
 Only build or publish an external dashboard when requested. Start with the same
-countdown, prize pool and short rules; add metrics only when the user asks.
+countdown, prize pool and optional Rules link; add metrics only when the user asks.
 Use permitted player data and never expose credentials, private preferences or
 administrator analytics. Reuse a supported native widget instead of introducing
 new infrastructure for this display.

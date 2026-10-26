@@ -12,6 +12,30 @@ class AuthMixin:
     def auth_status(self) -> dict[str, Any]:
         return self.request("GET", "/api/status")
 
+    def credentials(self, show_password: bool = False) -> dict[str, Any]:
+        """Read this installation's private login; secrets require an explicit flag."""
+        with self.state.lock():
+            credentials = self.state.load_credentials()
+        if not credentials:
+            return {"error": "no_saved_credentials"}
+        result = {"email": credentials["email"], "credentials_saved": True}
+        if show_password:
+            result["password"] = credentials["password"]
+        return result
+
+    def resend_confirmation(self, email: str = "", password: str = "") -> dict[str, Any]:
+        """Resend activation without replacing the pending account or password."""
+        email = email.strip()
+        if bool(email) != bool(password):
+            return {"error": "missing_credentials", "hint": "Provide both email and password, or omit both."}
+        if not email:
+            credentials = self.state.load_credentials()
+            if not credentials:
+                return {"error": "no_saved_credentials"}
+            email, password = credentials["email"], credentials["password"]
+        return self.request("POST", "/api/register/resend", json={"email": email, "password": password},
+                            _allow_relogin=False)
+
     def login(self, email: str | None = None, password: str | None = None) -> dict[str, Any]:
         email = (email or "").strip()
         password = password or ""
@@ -60,7 +84,15 @@ class AuthMixin:
         email = email.strip()
         if not email:
             raise ValueError("Email is required")
+        if self.state.load_credentials():
+            return {"error": "saved_account_exists", "hint": "Use login, confirm or resend-confirmation for the existing account."}
+        status = self.request("GET", "/api/status", _allow_relogin=False)
+        if status.get("error"):
+            return status
+        if status.get("authenticated"):
+            return {"error": "already_authenticated", "hint": "Keep using the signed-in account."}
         username = username.strip() or "player_" + secrets.token_hex(6)
+        generated_password = not password
         password = password or "Aa1!" + secrets.token_urlsafe(24)
         body = {
             "username": username,
@@ -80,10 +112,21 @@ class AuthMixin:
             "sex": sex,
         }
         body.update({key: value for key, value in optional.items() if value})
-        result = self.request("POST", "/api/register", json=body)
+        # Keep the exact credentials if the server accepts the request but its
+        # response is lost. Another register command must not replace them.
+        with self.state.lock():
+            if self.state.load_credentials():
+                return {"error": "saved_account_exists", "hint": "Use login, confirm or resend-confirmation for the existing account."}
+            self.state._write_json(self.state.credentials_file, {"email": email, "password": password})
+        result = self.request("POST", "/api/register", json=body, _allow_relogin=False)
         if result.get("success"):
-            self.state.save_credentials(email, password)
-            result = {**result, "username": username, "credentials_saved": True, "terms_accepted": True}
+            result = {**result, "username": username, "credentials_saved": True, "terms_accepted": True,
+                      "password_generated": generated_password,
+                      "password_handoff_required": generated_password}
+        elif 400 <= result.get("status", 0) < 500:
+            # A definite rejection created no account. A timeout or server error
+            # is ambiguous, so retain the credentials for confirmation/recovery.
+            self.state.clear_credentials()
         return result
 
     def confirm(self, confirmation_url: str) -> dict[str, Any]:

@@ -2,9 +2,8 @@
 
 ## Runtime
 
-The source repository root is the complete skill. Install the latest stable
-GitHub release, keeping its Python package and references with `SKILL.md`.
-Do not replace a newer release with an untagged `main` or `dev` checkout.
+The source repository root is the complete skill. Install from its `main`
+branch, keeping the Python package and references with `SKILL.md`.
 Preserve local changes and the user's `ASP_DATA_DIR` during updates.
 
 ```bash
@@ -49,9 +48,25 @@ asp register --email player@example.com
 ```
 
 The CLI generates a nickname/password, accepts the site's terms and privately
-saves credentials. Tell the user the nickname, that terms were accepted, and
-whether email confirmation remains. Do not ask for unnecessary profile fields.
-If the email already exists, recover that account instead.
+saves credentials. After a successful registration, run
+`asp credentials --show-password` and **give the generated password to its owner
+once in the private conversation**, with the email and a brief request to save it
+in their password manager. Do this before continuing setup; a saved local file
+alone does not give the user access on another device. Never put the password in
+a shared artifact, widget, automation or public profile. If the host cannot show
+a private message, have the user register on the site and sign in instead.
+An explicitly supplied password is retained; do not generate a replacement.
+
+Tell the user whether email confirmation remains. Do not ask for unnecessary
+profile fields. `asp credentials` hides the password by default; the explicit
+flag also lets the owner recover an existing CLI-generated password later.
+
+Registration never serves as login, recovery or an email resend. The CLI stops
+if it already has saved access or a live account. For an unconfirmed account use
+`asp resend-confirmation`, which reuses the saved email/password and preserves
+the account. For an existing confirmed email, sign in or use password recovery.
+After an uncertain registration response, keep the saved credentials and check
+the confirmation email; do not register again with a new password or nickname.
 
 With authorized mailbox access, find the recent AgentSports confirmation email
 for this address and use `asp confirm URL`. Otherwise ask the user to open the
@@ -63,8 +78,9 @@ Check authenticated state afterward; a different browser may need a CLI login.
 
 Cookies and credentials live in private `~/.asp/` files by default. Use
 `ASP_DATA_DIR` for a persistent private directory supplied by the host; cloud
-files may disappear between sessions. Never print passwords or put them in
-memory, public bios, automation prompts or dashboards. Memory may retain the
+files may disappear between sessions. Outside the owner's private password
+handoff, never expose passwords or put them in memory, public bios, automation
+prompts or dashboards. Memory may retain the
 account identity and private storage location.
 
 Preferences are separate, optional, account-and-origin-scoped files. Read them

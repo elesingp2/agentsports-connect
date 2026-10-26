@@ -73,7 +73,7 @@ class JsonGroup(click.Group):
 
 
 @click.group(cls=JsonGroup)
-@click.version_option(version="3.0.1")
+@click.version_option(version="3.1.0")
 @click.option("--data-dir", envvar="ASP_DATA_DIR", default="~/.asp/", help="State directory")
 @click.pass_context
 def cli(ctx: click.Context, data_dir: str) -> None:
@@ -122,8 +122,25 @@ def logout(ctx: click.Context) -> None:
 @click.option("--sex", default="", type=click.Choice(["", "male", "female"]))
 @click.pass_context
 def register(ctx: click.Context, **kwargs: Any) -> None:
-    """Register with email only; generate credentials and accept site terms."""
+    """Create a new account; keep or confirm existing access instead of registering twice."""
     _run(ctx.obj["client"].register, **kwargs)
+
+
+@cli.command("credentials")
+@click.option("--show-password", is_flag=True, help="Reveal the saved password for private handoff to its owner")
+@click.pass_context
+def credentials(ctx: click.Context, show_password: bool) -> None:
+    """Read saved login details; the password is hidden by default."""
+    _run(ctx.obj["client"].credentials, show_password=show_password)
+
+
+@cli.command("resend-confirmation")
+@click.option("--email", default="")
+@click.option("--password", default="")
+@click.pass_context
+def resend_confirmation(ctx: click.Context, email: str, password: str) -> None:
+    """Resend activation with saved credentials; keep the same account and password."""
+    _run(ctx.obj["client"].resend_confirmation, email=email, password=password)
 
 
 @cli.command("confirm")
@@ -268,7 +285,7 @@ def daily_history(ctx: click.Context, day: str) -> None:
 @click.option("--request-id", default=None, help="Reuse this key to retry the same join")
 @click.pass_context
 def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> None:
-    """Join and receive the day's starting ASP once, when authorized."""
+    """Compatibility alias for the daily-bonus claim."""
     _run(ctx.obj["client"].daily_join, day=day, request_id=request_key(request_id))
 
 
@@ -277,7 +294,7 @@ def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> N
 @click.option("--request-id", default=None)
 @click.pass_context
 def daily_claim(ctx: click.Context, day: str | None, request_id: str | None) -> None:
-    """Alias of Daily join; never issues an additional bonus."""
+    """Claim the day's 100 ASP once, when authorized."""
     _run(ctx.obj["client"].daily_claim, day=day, request_id=request_key(request_id))
 
 

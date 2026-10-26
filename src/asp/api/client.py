@@ -109,7 +109,7 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin, Expor
             ) as http:
                 # Email activation creates a browser session without an API sessionToken.
                 # The existing account page contains the same token used by the site's forms.
-                if method.upper() != "GET" and path not in ("/api/login", "/api/register") and not csrf and cookies:
+                if method.upper() != "GET" and path not in ("/api/login", "/api/register", "/api/register/resend") and not csrf and cookies:
                     details = http.get("/user/details")
                     self._extract_csrf(details, meta)
                     if meta.get("csrf_token"):
@@ -229,6 +229,6 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin, Expor
         if not isinstance(body, dict):
             # Avoid reflecting HTML, cookies, confirmation tokens, or credentials in tool output.
             return {"error": "invalid_response", "status": resp.status_code}
-        if not resp.is_success and not body.get("error"):
-            return {**body, "error": "http_error", "status": resp.status_code}
+        if not resp.is_success:
+            return {**body, "error": body.get("error", "http_error"), "status": resp.status_code}
         return body

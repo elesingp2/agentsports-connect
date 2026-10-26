@@ -9,9 +9,17 @@ eligibility, rank and entries. `asp daily history --day YYYY-MM-DD` reads that
 day's full snapshot, including unresolved entries; it is not a settled-only list.
 Use `available_asp` for spending. `balance_asp` also includes pending entry stakes.
 
+The server creates the UTC competition period automatically. Existing coupons
+belong to it by their event times; neither the player nor the agent creates a
+day or attaches coupons. Claim the bonus through `asp daily claim` (or the site's
+existing `/user/daily` page). A claim does not need a wallet or an open coupon.
+Use normal `asp active` / `asp history` for My Bets and `asp daily leaderboard`
+for the existing homepage standings; there is no separate `/daily` product page.
+
 Require the real `enabled` and state/eligibility fields before saying a Daily is
-available. An old API without these fields, a disabled feature, an unfunded day,
-an unverified wallet or an API error must not be described as ready. Do not
+available. An old API without these fields, a disabled feature or an API error
+must not be described as ready. An unfunded prize does not prevent the free ASP
+claim; a verified wallet is needed before a prize can be paid. Do not
 infer eligibility or prizes from a local balance calculation.
 
 Current Daily rules are free entry, 100 starting ASP claimed once and at most
@@ -29,9 +37,9 @@ Prize eligibility requires at least one calculated, noncancelled coupon pool
 with at least two distinct users. Losses and competitive all-perfect pools count;
 a single-user refund does not. Read the server's eligibility and
 [Daily rules](https://agentsports.io/en/dailyRules), not a guess from bet status.
-The minimum eligible participant count and prize fund are configured per day.
-The current default requires two eligible participants and funds 20 USDC, but
-never promise that amount without checking the published day.
+Check the live minimum eligible participant count and actual funded prize.
+The default minimum is two eligible participants; never promise the configured
+budget without checking that it is reserved for the current competition.
 
 The funded pool goes to the top half of eligible users (rounded down), including
 everyone tied at the cutoff, proportionally to their final ASP. If all winning
@@ -44,7 +52,7 @@ only confirmed transfers are paid. Use server values, not a local prize formula.
 
 The `asp` CLI is not a background scheduler. Use the host's native scheduling
 capability only after confirming it can run tools, not merely send reminders.
-The one-time recurring scope covers future free joins, starting ASP, researched
+The one-time recurring scope covers future free bonus claims, researched
 predictions within limits and scheduled checks until paused. A one-off scope
 remains one-off. Missing scheduler capability permits manual play, not a claim
 that autonomous play is running.
@@ -71,7 +79,7 @@ The server independently enforces Daily rules and cumulative coupon allowance.
 
 - Read the current day, accepted entries and prior unresolved days separately.
   Yesterday's prize may finalize after today's balance has been issued.
-- In scheduled joins, supply the explicit UTC `--day` read from status. Preserve
+- In scheduled claims, supply the explicit UTC `--day` read from status. Preserve
   that day and request ID across a retry near midnight; never retarget an unknown
   previous action to the newly current day.
 - Inspect real room cost, available ASP and total stake already accepted for the
@@ -86,7 +94,7 @@ The server independently enforces Daily rules and cumulative coupon allowance.
   default. Back off while waiting and never promise exact host execution time.
 - Re-read changed coaching before the next submission. Changes apply immediately
   to future actions; accepted entries and already-used limits remain unchanged.
-- Pause stops future joins/submissions and disables the native runner; already
+- Pause stops future claims/submissions and disables the native runner; already
   accepted entries settle on the platform. Resume reuses the runner after a
   fresh state check. Public descriptions change only with authorization to
   publish that text, not whenever private coaching changes.
@@ -96,8 +104,8 @@ late finalization cannot be lost or announced repeatedly. Skip unchanged/empty
 checks. Show estimated, calculated, awarded and paid states distinctly, using
 server data rather than a local prize estimate.
 
-The default widget contains only a large entry-deadline countdown, the published
-prize pool and a short rule line, as specified in SKILL.md. A zero countdown
+The optional widget contains only a large entry-deadline countdown, the funded
+prize pool and optionally a small Rules link, as specified in SKILL.md. A zero countdown
 means entries are closed, not that results or transfers are complete.
 
 An explicitly requested dashboard may use authorized player data through an appropriate

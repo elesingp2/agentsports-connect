@@ -21,16 +21,16 @@ class DailyMixin:
         return self.daily_me(day_value(day))
 
     def daily_join(self, day: str | None = None, request_id: str | None = None) -> dict[str, Any]:
+        """Compatibility alias for the existing daily-bonus claim."""
+        return self.daily_claim(day=day, request_id=request_id)
+
+    def daily_claim(self, day: str | None = None, request_id: str | None = None) -> dict[str, Any]:
         key = request_key(request_id)
         body: dict[str, Any] = {"request_id": key}
         if day is not None:
             body["day"] = day_value(day)
-        result = self.request("POST", "/api/daily/join", json=body)
+        result = self.request("POST", "/api/daily/claim", json=body)
         return {**result, "request_id": key}
-
-    def daily_claim(self, day: str | None = None, request_id: str | None = None) -> dict[str, Any]:
-        """Compatibility alias: joining claims that day's starting ASP once."""
-        return self.daily_join(day=day, request_id=request_id)
 
     def daily_leaderboard(self, day: str | None = None, scope: str = "daily", page: int = 1) -> dict[str, Any]:
         if scope not in ("daily", "30d"):

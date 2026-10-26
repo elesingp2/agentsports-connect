@@ -87,6 +87,8 @@ class TransportTests(unittest.TestCase):
         bodies = []
 
         def handler(request):
+            if request.url.path == "/api/status":
+                return httpx.Response(200, json={"authenticated": False})
             bodies.append(json.loads(request.content))
             return httpx.Response(200, json={"success": True, "needs_email_confirmation": True})
 
@@ -95,8 +97,87 @@ class TransportTests(unittest.TestCase):
         self.assertTrue(result["credentials_saved"])
         self.assertTrue(result["terms_accepted"])
         self.assertNotIn("password", result)
+        self.assertTrue(result["password_handoff_required"])
         self.assertEqual(set(bodies[0]), {"username", "email", "password", "acceptTerms"})
         self.assertEqual(self.client.state.load_credentials()["password"], bodies[0]["password"])
+
+    def test_registration_does_not_replace_saved_credentials(self):
+        self.client.state.save_credentials("player@example.test", "original-test-password")
+        with self.transport(lambda _: self.fail("Existing access must not trigger registration")):
+            result = self.client.register(email="player@example.test")
+        self.assertEqual(result["error"], "saved_account_exists")
+        self.assertEqual(self.client.state.load_credentials()["password"], "original-test-password")
+
+    def test_registration_keeps_a_live_account_even_without_saved_password(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request.url.path)
+            return httpx.Response(200, json={"authenticated": True, "username": "original"})
+
+        with self.transport(handler):
+            result = self.client.register(email="player@example.test")
+        self.assertEqual(result["error"], "already_authenticated")
+        self.assertEqual(requests, ["/api/status"])
+        self.assertIsNone(self.client.state.load_credentials())
+
+    def test_registration_timeout_preserves_exact_password_and_blocks_retry(self):
+        sent = []
+
+        def handler(request):
+            if request.url.path == "/api/status":
+                return httpx.Response(200, json={"authenticated": False})
+            sent.append(json.loads(request.content))
+            raise httpx.ReadTimeout("response lost", request=request)
+
+        with self.transport(handler):
+            with self.assertRaises(httpx.ReadTimeout):
+                self.client.register(email="player@example.test")
+            retry = self.client.register(email="player@example.test")
+        self.assertEqual(retry["error"], "saved_account_exists")
+        self.assertEqual(len(sent), 1)
+        self.assertEqual(self.client.state.load_credentials()["password"], sent[0]["password"])
+
+    def test_rejected_registration_does_not_save_an_unusable_password(self):
+        def handler(request):
+            if request.url.path == "/api/status":
+                return httpx.Response(200, json={"authenticated": False})
+            return httpx.Response(409, json={"error": "already_registered"})
+
+        with self.transport(handler):
+            result = self.client.register(email="player@example.test")
+        self.assertEqual(result["error"], "already_registered")
+        self.assertIsNone(self.client.state.load_credentials())
+
+    def test_registration_server_error_keeps_credentials_for_unknown_outcome(self):
+        def handler(request):
+            if request.url.path == "/api/status":
+                return httpx.Response(200, json={"authenticated": False})
+            return httpx.Response(500, json={"error": "server_error"})
+
+        with self.transport(handler):
+            result = self.client.register(email="player@example.test", password="KnownTestPassword!")
+        self.assertEqual(result["status"], 500)
+        self.assertEqual(self.client.state.load_credentials()["password"], "KnownTestPassword!")
+
+    def test_credentials_hide_password_without_explicit_handoff(self):
+        self.client.state.save_credentials("player@example.test", "private-test-password")
+        self.assertEqual(self.client.credentials(), {"email": "player@example.test", "credentials_saved": True})
+        self.assertEqual(self.client.credentials(show_password=True)["password"], "private-test-password")
+
+    def test_resend_uses_saved_password_and_never_registers(self):
+        self.client.state.save_credentials("player@example.test", "original-test-password")
+        requests = []
+
+        def handler(request):
+            requests.append((request.url.path, json.loads(request.content)))
+            return httpx.Response(200, json={"success": True, "needs_email_confirmation": True})
+
+        with self.transport(handler):
+            result = self.client.resend_confirmation()
+        self.assertTrue(result["needs_email_confirmation"])
+        self.assertEqual(requests, [("/api/register/resend", {"email": "player@example.test", "password": "original-test-password"})])
+        self.assertEqual(self.client.state.load_credentials()["password"], "original-test-password")
 
 
 if __name__ == "__main__":

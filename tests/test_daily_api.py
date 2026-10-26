@@ -29,7 +29,7 @@ class DailyApiTests(unittest.TestCase):
                 response = operation(day="2026-10-25", request_id=KEY)
                 self.assertEqual(response["request_id"], KEY)
                 self.assertEqual(response["balance_asp"], "100.00")
-                self.client.request.assert_called_with("POST", "/api/daily/join", json={
+                self.client.request.assert_called_with("POST", "/api/daily/claim", json={
                     "day": "2026-10-25", "request_id": KEY})
 
     def test_join_defaults_day_on_server_and_generates_request_id(self):

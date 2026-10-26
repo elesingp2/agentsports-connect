@@ -98,6 +98,23 @@ class CliTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 3)
         self.client.preferences_save.assert_not_called()
 
+    def test_password_retrieval_requires_explicit_flag(self):
+        self.client.credentials.return_value = {"email": "player@example.test", "credentials_saved": True}
+        self.assertEqual(self.invoke("credentials").exit_code, 0)
+        self.client.credentials.assert_called_once_with(show_password=False)
+        self.client.credentials.reset_mock()
+        self.client.credentials.return_value = {"email": "player@example.test", "password": "private-test-password"}
+        result = self.invoke("credentials", "--show-password")
+        self.assertEqual(json.loads(result.stdout)["password"], "private-test-password")
+        self.client.credentials.assert_called_once_with(show_password=True)
+
+    def test_resend_uses_the_existing_account(self):
+        self.client.resend_confirmation.return_value = {"success": True, "needs_email_confirmation": True}
+        result = self.invoke("resend-confirmation")
+        self.assertEqual(result.exit_code, 0, result.output)
+        self.client.resend_confirmation.assert_called_once_with(email="", password="")
+        self.client.register.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
