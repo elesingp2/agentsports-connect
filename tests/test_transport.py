@@ -67,7 +67,7 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(entries[0], entries[1])
         self.assertEqual(entries[1]["request_id"], KEY)
 
-    def test_rejected_saved_password_is_forgotten_not_repeated(self):
+    def test_rejected_saved_password_is_retained_without_repeated_login(self):
         self.client.state.save_credentials("player@example.test", "test-only-password")
         login_requests = []
 
@@ -78,10 +78,61 @@ class TransportTests(unittest.TestCase):
             return httpx.Response(401, json={"error": "not_authenticated"})
 
         with self.transport(handler):
-            self.client.daily_me()
+            first = self.client.daily_me()
             self.client.daily_me()
         self.assertEqual(len(login_requests), 1)
-        self.assertIsNone(self.client.state.load_credentials())
+        self.assertEqual(first["error"], "invalid_credentials")
+        self.assertEqual(self.client.credentials(show_password=True)["password"], "test-only-password")
+        self.assertEqual(self.client.register(email="player@example.test")["error"], "saved_account_exists")
+
+    def test_unconfirmed_account_keeps_generated_password_for_resend_and_login(self):
+        registered = {}
+        login_requests = []
+        activated = False
+
+        def handler(request):
+            if request.url.path == "/api/status":
+                return httpx.Response(200, json={"authenticated": False})
+            if request.url.path == "/api/register":
+                registered.update(json.loads(request.content))
+                return httpx.Response(200, json={"success": True, "needs_email_confirmation": True})
+            if request.url.path == "/api/login":
+                login_requests.append(json.loads(request.content))
+                if not activated:
+                    return httpx.Response(401, json={"error": "invalid_credentials"})
+                return httpx.Response(200, json={"authenticated": True, "sessionToken": "confirmed-token"})
+            if request.url.path == "/api/register/resend":
+                self.assertEqual(json.loads(request.content), {
+                    "email": registered["email"], "password": registered["password"],
+                })
+                return httpx.Response(200, json={"success": True, "needs_email_confirmation": True})
+            return httpx.Response(401, json={"error": "not_authenticated"})
+
+        with self.transport(handler):
+            self.client.register(email="player@example.test")
+            self.assertEqual(self.client.daily_me()["error"], "invalid_credentials")
+            self.client.daily_me()
+            self.assertEqual(len(login_requests), 1)
+            self.assertEqual(self.client.credentials(show_password=True)["password"], registered["password"])
+            self.assertTrue(self.client.resend_confirmation()["success"])
+            activated = True
+            self.assertTrue(self.client.login()["authenticated"])
+            self.client.daily_me()
+            self.assertEqual(len(login_requests), 3)
+        self.assertEqual(login_requests[-1]["password"], registered["password"])
+
+    def test_auto_login_exposes_session_limit_without_losing_password(self):
+        self.client.state.save_credentials("player@example.test", "test-only-password")
+
+        def handler(request):
+            if request.url.path == "/api/login":
+                return httpx.Response(409, json={"error": "player_sessions_limit_reached"})
+            return httpx.Response(401, json={"error": "not_authenticated"})
+
+        with self.transport(handler):
+            result = self.client.daily_me()
+        self.assertEqual(result["error"], "player_sessions_limit_reached")
+        self.assertEqual(self.client.credentials(show_password=True)["password"], "test-only-password")
 
     def test_registration_keeps_generated_credentials_out_of_result(self):
         bodies = []

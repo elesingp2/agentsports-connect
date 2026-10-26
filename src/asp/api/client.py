@@ -152,7 +152,7 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin, Expor
     ) -> httpx.Response:
         """Attempt auto-relogin with saved credentials, then retry the original request."""
         creds = self.state.load_credentials()
-        if not creds:
+        if not creds or meta.get("auto_relogin_blocked"):
             return orig_resp
 
         login_resp = http.post(
@@ -161,11 +161,13 @@ class AspClient(AuthMixin, PredictionMixin, AccountMixin, MonitoringMixin, Expor
             headers={"Accept": "application/json", "Content-Type": "application/json"},
         )
         if login_resp.status_code != 200:
-            if login_resp.status_code == 401 and self._parse_response(login_resp).get("error") == "invalid_credentials":
-                # A changed password must not cause repeated login attempts and a lockout.
-                self.state.clear_credentials()
+            if self._parse_response(login_resp).get("error") in ("invalid_credentials", "too_many_attempts"):
+                # An unconfirmed account also returns invalid_credentials. Keep
+                # its password for confirmation/resend and the owner's handoff;
+                # stop automatic attempts until an explicit login succeeds.
+                meta["auto_relogin_blocked"] = True
                 meta["csrf_token"] = ""
-            return orig_resp
+            return login_resp
 
         login_data = self._parse_response(login_resp)
         if not login_data.get("authenticated"):

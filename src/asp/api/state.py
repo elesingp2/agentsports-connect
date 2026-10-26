@@ -136,6 +136,9 @@ class StateManager:
     def save_credentials(self, email: str, password: str) -> None:
         with self.lock():
             self._write_json(self.credentials_file, {"email": email, "password": password})
+            meta = self._load_meta()
+            meta.pop("auto_relogin_blocked", None)
+            self._save_meta(meta)
 
     def clear(self) -> None:
         """Forget the local login, including credentials used for auto-relogin."""
@@ -144,7 +147,7 @@ class StateManager:
                 path.unlink(missing_ok=True)
 
     def clear_credentials(self) -> None:
-        """Stop auto-relogin after the server rejects a saved password."""
+        """Remove stored credentials without changing the current session."""
         with self.lock():
             self.credentials_file.unlink(missing_ok=True)
 

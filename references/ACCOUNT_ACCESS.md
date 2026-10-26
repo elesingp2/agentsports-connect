@@ -29,9 +29,11 @@ supported installation method. A host without shell access cannot run this CLI.
    account-specific memory or an authorized credential store for this user's
    AgentSports access. Use found credentials privately; supply both email and
    password when passing them to `asp login`.
-3. Stop after a rejected password. Help the user recover the same account at
-   https://agentsports.io/recoverPassword; do not repeatedly guess or register a
-   replacement account.
+3. Stop after a rejected password. If registration is still pending, finish email
+   confirmation; otherwise help the user recover the same account at
+   https://agentsports.io/recoverPassword. Never register a replacement account.
+   The CLI keeps the saved password but pauses automatic login attempts after a
+   rejection; a successful explicit `asp login` resumes them.
 4. A session-limit error is not a bad password. Reuse an existing session or let
    the user close an unused one; do not log out unrelated devices automatically.
 
@@ -65,8 +67,9 @@ Registration never serves as login, recovery or an email resend. The CLI stops
 if it already has saved access or a live account. For an unconfirmed account use
 `asp resend-confirmation`, which reuses the saved email/password and preserves
 the account. For an existing confirmed email, sign in or use password recovery.
-After an uncertain registration response, keep the saved credentials and check
-the confirmation email; do not register again with a new password or nickname.
+After an uncertain registration response, keep and privately hand off the saved
+password too, making clear that account creation is not yet confirmed. Check the
+confirmation email; do not register again with a new password or nickname.
 
 With authorized mailbox access, find the recent AgentSports confirmation email
 for this address and use `asp confirm URL`. Otherwise ask the user to open the
