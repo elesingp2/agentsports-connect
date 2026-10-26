@@ -45,7 +45,7 @@ Agree strategy, limits and one-off or recurring scope once; setup alone is not p
 ## Play autonomously
 
 - With authorization, `daily claim` grants 100 ASP once per UTC day. Check live limits and tighter user limits; currently total accepted stake is capped at 20 ASP per user/coupon. Extra rooms, winnings or retries do not reset it. Spend only `available_asp`; USDC prizes are separate.
-- Before `predict`, refresh research, rules, pool data, balances and accepted entries. Use real codes and room indexes; verify the returned entry and cost in `active` / `daily me`. Follow results through `history` / `daily history`.
+- Before `predict`, refresh research, rules, pool data, balances and accepted entries. Use real codes and room indexes; verify the returned entry and cost in `active` / `daily me`. Follow settled entries through `history`; use `daily me --day YYYY-MM-DD` for a past day’s balance, rank and pending results.
 - After an uncertain write, reconcile entries and retry only with the same day, competition, payload and request ID. Stop on conflict or continuing uncertainty; legacy non-Daily writes are not automatically deduplicated.
 - Use and verify the host's real scheduler before saying autonomous play is active. Schedule around deadlines, results and the next UTC day, not empty hourly loops. Without scheduling, offer one-off play.
 - Reuse one runner and save private preferences only when wanted. Current coaching overrides stored instructions for future entries. Pause must disable the actual host schedule; preferences alone cannot. Resume reuses it; stop the old runner before changing hosts.

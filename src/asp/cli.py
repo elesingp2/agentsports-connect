@@ -241,46 +241,28 @@ def social(ctx: click.Context) -> None:
 
 @cli.group("daily")
 def daily() -> None:
-    """Daily competitions, balances, history and rankings."""
+    """Daily competition, personal results, bonus and rankings."""
 
 
 @daily.command("status")
 @click.option("--day", help="UTC day: YYYY-MM-DD; current day by default")
-@click.option("--me", is_flag=True, help="Read this account's day balance and entries")
 @click.pass_context
-def daily_status(ctx: click.Context, day: str | None, me: bool) -> None:
+def daily_status(ctx: click.Context, day: str | None) -> None:
     """Check availability and real day state; this does not join."""
-    _run(api.daily_me if me else api.daily_status, ctx.obj, day=day)
+    _run(api.daily_status, ctx.obj, day=day)
 
 
 @daily.command("me")
-@click.option("--day", help="UTC day: YYYY-MM-DD")
+@click.option("--day", help="UTC day: YYYY-MM-DD; current day by default, or a past day for results")
 @click.pass_context
 def daily_me(ctx: click.Context, day: str | None) -> None:
     """Read this account's day balance, rank and entries."""
     _run(api.daily_me, ctx.obj, day=day)
 
 
-@daily.command("history")
-@click.option("--day", required=True, help="UTC day: YYYY-MM-DD")
-@click.pass_context
-def daily_history(ctx: click.Context, day: str) -> None:
-    """Read a day's full snapshot, including still-pending entries."""
-    _run(api.daily_me, ctx.obj, day=day)
-
-
-@daily.command("join")
-@click.option("--day", help="UTC day: YYYY-MM-DD; current day by default")
-@click.option("--request-id", default=None, help="Reuse this key to retry the same join")
-@click.pass_context
-def daily_join(ctx: click.Context, day: str | None, request_id: str | None) -> None:
-    """Compatibility alias for the daily-bonus claim."""
-    _run(api.daily_claim, ctx.obj, day=day, request_id=request_key(request_id))
-
-
 @daily.command("claim")
 @click.option("--day", help="UTC day: YYYY-MM-DD")
-@click.option("--request-id", default=None)
+@click.option("--request-id", default=None, help="Reuse this key to retry the same claim")
 @click.pass_context
 def daily_claim(ctx: click.Context, day: str | None, request_id: str | None) -> None:
     """Claim the day's 100 ASP once, when authorized."""
